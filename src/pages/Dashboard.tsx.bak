@@ -1,0 +1,481 @@
+import { useState } from 'react'
+import { Plus, CreditCard, ArrowRight, CalendarDays } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { MonthSelector } from '@/components/layout/MonthSelector'
+import { TransactionForm } from '@/components/TransactionForm'
+import { IncomeForm } from '@/components/IncomeForm'
+import { TransferForm } from '@/components/TransferForm'
+import { useFinance } from '@/context/FinanceContext'
+import { formatBRL, formatDate } from '@/lib/format'
+import { billingPeriodLabel } from '@/lib/billing'
+import { cn } from '@/lib/utils'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import type { ChartConfig } from '@/components/ui/chart'
+import type { CategoryStat, BankAccount } from '@/lib/types'
+
+export function Dashboard() {
+  const { transactions, incomes, loading, stats, bankAccounts, futureBills } = useFinance()
+  const [txOpen, setTxOpen] = useState(false)
+  const [incOpen, setIncOpen] = useState(false)
+  const [txfOpen, setTxfOpen] = useState(false)
+
+  const {
+    gastoBruto,
+    gastoRealMeu,
+    totalIncome,
+    sobraReal,
+    aReceberPending,
+    byCategory,
+    byMethod,
+    cardBills,
+    subscriptions,
+    annualSubscriptionsTotal,
+  } = stats
+
+  const recentTx = transactions.slice(0, 5)
+
+  const chartData = byCategory.slice(0, 6).map((c: CategoryStat) => ({
+    name: c.label.length > 12 ? c.label.slice(0, 10) + '…' : c.label,
+    bruto: c.amount,
+    meu: c.myAmount,
+  }))
+
+  const chartConfig: ChartConfig = {
+    bruto: { label: 'Bruto', color: 'var(--chart-2)' },
+    meu: { label: 'Meu gasto', color: 'var(--chart-1)' },
+  }
+
+  return (
+    <div className="flex flex-col gap-4 p-4 pb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Finanças</h1>
+          <MonthSelector className="mt-0.5" />
+        </div>
+        <div className="flex gap-2">
+          {bankAccounts.length >= 2 && (
+            <Button size="sm" variant="ghost" onClick={() => setTxfOpen(true)} title="Transferir">
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setIncOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Receita
+          </Button>
+        </div>
+      </div>
+
+      {/* Account balances strip */}
+      {!loading && bankAccounts.length > 0 && (
+        <div className="flex overflow-x-auto gap-2 pb-1 -mx-1 px-1">
+          {bankAccounts.map(acc => (
+            <AccountBalanceCard key={acc.id} account={acc} />
+          ))}
+        </div>
+      )}
+
+      {/* Primary metrics — most important */}
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <MetricHero
+            label="Gasto Real Meu"
+            value={gastoRealMeu}
+            subtitle="Só o que é seu"
+            variant="expense"
+          />
+          <MetricHero
+            label="Sobra Real"
+            value={sobraReal}
+            subtitle="Receitas − gasto real meu"
+            variant={sobraReal >= 0 ? 'income' : 'danger'}
+          />
+        </div>
+      )}
+
+      {/* Secondary metrics */}
+      {loading ? (
+        <div className="grid grid-cols-3 gap-2">
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <SmallMetric label="Gasto Bruto" value={gastoBruto} />
+          <SmallMetric
+            label="A Receber"
+            value={aReceberPending}
+            highlight={aReceberPending > 0}
+          />
+          <SmallMetric label="Entradas" value={totalIncome} positive />
+        </div>
+      )}
+
+      {/* Card bills summary */}
+      {!loading && cardBills.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Faturas do Mês
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 space-y-2">
+            {cardBills.map(bill => (
+              <div key={bill.card.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: bill.card.color }}
+                  />
+                  <span className="text-sm">{bill.card.name}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold">{formatBRL(bill.myAmount)}</span>
+                  {bill.total !== bill.myAmount && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      ({formatBRL(bill.total)} bruto)
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Future bills panel */}
+      {!loading && futureBills.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Próximas Faturas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 space-y-2">
+            {futureBills.slice(0, 4).map(bill => (
+              <div key={`${bill.year}-${bill.month}`} className="flex items-center justify-between">
+                <span className="text-sm capitalize text-muted-foreground">
+                  {billingPeriodLabel(bill.year, bill.month)}
+                </span>
+                <div className="text-right">
+                  <span className="text-sm font-semibold">{formatBRL(bill.myAmount)}</span>
+                  {bill.fromInstallments > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      {formatBRL(bill.fromInstallments)} parc.
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Total comprometido</span>
+              <span className="text-sm font-bold text-primary">
+                {formatBRL(futureBills.reduce((s, b) => s + b.myAmount, 0))}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Subscriptions annual summary */}
+      {!loading && subscriptions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Assinaturas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 space-y-2">
+            {subscriptions.slice(0, 4).map((sub, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  {sub.card && (
+                    <span
+                      className="inline-block h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: sub.card.color }}
+                    />
+                  )}
+                  <span className="truncate">{sub.description}</span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="font-medium">{formatBRL(sub.monthlyAmount)}/mês</span>
+                  <span className="text-xs text-muted-foreground ml-1">
+                    ({formatBRL(sub.annualAmount)}/ano)
+                  </span>
+                </div>
+              </div>
+            ))}
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Total anual</span>
+              <span className="text-sm font-bold text-primary">{formatBRL(annualSubscriptionsTotal)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Category chart */}
+      {!loading && chartData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Gastos por Categoria
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <ChartContainer config={chartConfig} className="h-[140px] w-full">
+              <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }} barGap={2}>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(v) => formatBRL(Number(v))}
+                    />
+                  }
+                />
+                <Bar dataKey="bruto" fill="var(--color-bruto)" radius={[3, 3, 0, 0]} opacity={0.4} />
+                <Bar dataKey="meu" fill="var(--color-meu)" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Method breakdown */}
+      {!loading && byMethod.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Por Método de Pagamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 space-y-2">
+            {byMethod.map(m => (
+              <div key={m.method} className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between text-sm">
+                    <span className="truncate text-muted-foreground">{m.label}</span>
+                    <span className="font-medium ml-2">
+                      {formatBRL(m.myAmount)}
+                      {m.amount !== m.myAmount && (
+                        <span className="text-xs text-muted-foreground ml-1 font-normal">
+                          / {formatBRL(m.amount)} bruto
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${gastoRealMeu > 0 ? (m.myAmount / gastoRealMeu) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent transactions */}
+      <Card>
+        <CardHeader className="pb-2 pt-4 flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Últimos Lançamentos
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-10 rounded-lg" />
+              ))}
+            </div>
+          ) : recentTx.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Nenhum lançamento neste mês
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {recentTx.map(tx => (
+                <div key={tx.id} className="flex items-center gap-3">
+                  <div
+                    className="h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{
+                      backgroundColor: tx.category?.color
+                        ? tx.category.color + '22'
+                        : '#6b728022',
+                      color: tx.category?.color || '#6b7280',
+                    }}
+                  >
+                    {tx.description.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-medium">{tx.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(tx.date)} · {tx.category?.name || 'Sem categoria'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold">{formatBRL(tx.my_amount)}</p>
+                    {tx.type !== 'mine' && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-[10px] py-0',
+                          tx.type === 'repasse'
+                            ? 'text-amber-600 border-amber-300 dark:text-amber-400'
+                            : 'text-blue-600 border-blue-300 dark:text-blue-400',
+                        )}
+                      >
+                        {tx.type}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Incomes */}
+      {!loading && incomes.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Receitas do Mês
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4 space-y-2">
+            {incomes.map(inc => (
+              <div key={inc.id} className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{inc.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(inc.date)}{inc.is_recurring && ' · recorrente'}
+                  </p>
+                </div>
+                <span className="ml-3 shrink-0 font-semibold text-sm text-emerald-600 dark:text-emerald-400">
+                  +{formatBRL(inc.amount)}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* FAB */}
+      <button
+        onClick={() => setTxOpen(true)}
+        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      <TransactionForm open={txOpen} onOpenChange={setTxOpen} />
+      <IncomeForm open={incOpen} onOpenChange={setIncOpen} />
+      <TransferForm open={txfOpen} onOpenChange={setTxfOpen} />
+    </div>
+  )
+}
+
+function AccountBalanceCard({ account }: { account: BankAccount }) {
+  return (
+    <div
+      className="shrink-0 rounded-xl border p-3 min-w-[120px]"
+      style={{ borderColor: account.color + '40' }}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className="inline-block h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: account.color }}
+        />
+        <span className="text-xs font-medium truncate">{account.name}</span>
+      </div>
+      <p className={cn(
+        'mt-1 text-lg font-bold tabular-nums',
+        account.current_balance >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'
+      )}>
+        {formatBRL(account.current_balance)}
+      </p>
+    </div>
+  )
+}
+
+function MetricHero({
+  label,
+  value,
+  subtitle,
+  variant,
+}: {
+  label: string
+  value: number
+  subtitle: string
+  variant: 'expense' | 'income' | 'danger'
+}) {
+  const colors = {
+    expense: 'bg-card border-border',
+    income: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900',
+    danger: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900',
+  }
+  const textColors = {
+    expense: 'text-foreground',
+    income: 'text-emerald-700 dark:text-emerald-300',
+    danger: 'text-red-600 dark:text-red-400',
+  }
+  return (
+    <div className={cn('rounded-2xl border p-4', colors[variant])}>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className={cn('mt-1 text-2xl font-bold tabular-nums leading-none', textColors[variant])}>
+        {formatBRL(value)}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">{subtitle}</p>
+    </div>
+  )
+}
+
+function SmallMetric({
+  label,
+  value,
+  positive,
+  highlight,
+}: {
+  label: string
+  value: number
+  positive?: boolean
+  highlight?: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-2.5 text-center">
+      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide truncate">
+        {label}
+      </p>
+      <p
+        className={cn(
+          'mt-0.5 text-sm font-bold tabular-nums',
+          positive && 'text-emerald-600 dark:text-emerald-400',
+          highlight && 'text-amber-600 dark:text-amber-400',
+        )}
+      >
+        {formatBRL(value)}
+      </p>
+    </div>
+  )
+}
