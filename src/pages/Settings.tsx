@@ -22,7 +22,7 @@ import { useFinance } from '@/context/FinanceContext'
 import { supabase } from '@/lib/supabase'
 import { formatBRL, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Income, Category, CardAccount } from '@/lib/types'
+import type { Income, Category, CardAccount, Subcategory } from '@/lib/types'
 
 const PRESET_COLORS = [
   '#f97316', '#3b82f6', '#22c55e', '#8b5cf6',
@@ -46,6 +46,10 @@ export function SettingsPage() {
     deleteBankAccount,
     setAccountBalance,
     deleteCardAccount,
+    subcategories,
+    addSubcategory,
+    updateSubcategory,
+    deleteSubcategory,
   } = useFinance()
 
   const [incOpen, setIncOpen] = useState(false)
@@ -77,6 +81,14 @@ export function SettingsPage() {
   const [editCatName, setEditCatName] = useState('')
   const [editCatColor, setEditCatColor] = useState('')
 
+  // Subcategories
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
+  const [newSubName, setNewSubName] = useState('')
+  const [addingSub, setAddingSub] = useState(false)
+  const [editSub, setEditSub] = useState<Subcategory | null>(null)
+  const [editSubName, setEditSubName] = useState('')
+  const [deleteSubId, setDeleteSubId] = useState<string | null>(null)
+
   async function handleAddCategory() {
     if (!newCatName.trim()) return
     setAddingCat(true)
@@ -92,6 +104,22 @@ export function SettingsPage() {
     if (!editCat || !editCatName.trim()) return
     await updateCategory(editCat.id, editCatName.trim(), editCatColor)
     setEditCat(null)
+  }
+
+  async function handleAddSubcategory(categoryId: string) {
+    if (!newSubName.trim()) return
+    setAddingSub(true)
+    try {
+      await addSubcategory(categoryId, newSubName.trim(), null)
+      setNewSubName('')
+    } catch { /* ignore */ }
+    setAddingSub(false)
+  }
+
+  async function handleUpdateSubcategory() {
+    if (!editSub || !editSubName.trim()) return
+    await updateSubcategory(editSub.id, editSubName.trim(), editSub.color)
+    setEditSub(null)
   }
 
   const [exporting, setExporting] = useState(false)
@@ -460,7 +488,10 @@ export function SettingsPage() {
             <Skeleton className="h-24" />
           ) : (
             <div className="space-y-2">
-              {categories.map(cat => (
+              {categories.map(cat => {
+                const catSubs = subcategories.filter(s => s.category_id === cat.id)
+                const isExpanded = expandedCatId === cat.id
+                return (
                 <div key={cat.id}>
                   {editCat?.id === cat.id ? (
                     <div className="rounded-lg border border-primary/30 p-2 space-y-2">
@@ -493,38 +524,117 @@ export function SettingsPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="h-5 w-5 rounded-full shrink-0"
-                        style={{ backgroundColor: cat.color }}
-                      />
-                      <span className="flex-1 text-sm font-medium">{cat.name}</span>
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => {
-                            setEditCat(cat)
-                            setEditCatName(cat.name)
-                            setEditCatColor(cat.color)
-                          }}
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
+                          className="h-5 w-5 rounded-full shrink-0 relative"
+                          style={{ backgroundColor: cat.color }}
                         >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => setDeleteCatId(cat.id)}
+                          {catSubs.length > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-muted-foreground text-background text-[9px] rounded-full h-3.5 w-3.5 flex items-center justify-center font-bold">
+                              {catSubs.length}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 text-sm font-medium text-left"
+                          onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                          {cat.name}
+                        </button>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setEditCat(cat)
+                              setEditCatName(cat.name)
+                              setEditCatColor(cat.color)
+                            }}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => setDeleteCatId(cat.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
+
+                      {isExpanded && (
+                        <div className="ml-8 mt-2 space-y-1.5 border-l border-border pl-3">
+                          {catSubs.map(sub => (
+                            <div key={sub.id} className="flex items-center gap-2">
+                              {editSub?.id === sub.id ? (
+                                <div className="flex-1 flex gap-1.5">
+                                  <Input
+                                    value={editSubName}
+                                    onChange={e => setEditSubName(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleUpdateSubcategory()}
+                                    className="text-xs h-7 flex-1"
+                                  />
+                                  <Button size="sm" className="h-7 px-2" onClick={handleUpdateSubcategory}>
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditSub(null)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <span className="text-xs text-muted-foreground flex-1">{sub.name}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    onClick={() => { setEditSub(sub); setEditSubName(sub.name) }}
+                                  >
+                                    <Edit2 className="h-2.5 w-2.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-destructive"
+                                    onClick={() => setDeleteSubId(sub.id)}
+                                  >
+                                    <Trash2 className="h-2.5 w-2.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                          <div className="flex gap-1.5">
+                            <Input
+                              placeholder="Nova subcategoria..."
+                              value={expandedCatId === cat.id ? newSubName : ''}
+                              onChange={e => setNewSubName(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && handleAddSubcategory(cat.id)}
+                              className="text-xs h-7 flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleAddSubcategory(cat.id)}
+                              disabled={addingSub || !newSubName.trim()}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>
@@ -655,6 +765,26 @@ export function SettingsPage() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => { if (deleteCardId) { await deleteCardAccount(deleteCardId); setDeleteCardId(null) } }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteSubId} onOpenChange={o => !o && setDeleteSubId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir subcategoria?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os lançamentos vinculados ficarão sem subcategoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => { if (deleteSubId) { await deleteSubcategory(deleteSubId); setDeleteSubId(null) } }}
             >
               Excluir
             </AlertDialogAction>

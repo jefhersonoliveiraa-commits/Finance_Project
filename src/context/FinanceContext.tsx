@@ -33,6 +33,7 @@ import type {
   FutureBillCard,
   View,
   BudgetLimit,
+  Subcategory,
 } from '@/lib/types'
 
 interface FinanceContextType {
@@ -46,6 +47,7 @@ interface FinanceContextType {
   futureBills: FutureBillMonth[]
   billPayments: CardBillPayment[]
   budgetLimits: BudgetLimit[]
+  subcategories: Subcategory[]
   loading: boolean
   selectedMonth: Date
   setSelectedMonth: (date: Date) => void
@@ -86,8 +88,14 @@ interface FinanceContextType {
   payCardBill: (cardId: string, year: number, month: number, amount: number, bankAccountId: string | null) => Promise<void>
   unpayCardBill: (cardId: string, year: number, month: number) => Promise<void>
 
-  setBudgetLimit: (categoryId: string, limit: number) => Promise<void>
-  deleteBudgetLimit: (categoryId: string) => Promise<void>
+  setBudgetLimit: (categoryId: string, limit: number, year: number, month: number) => Promise<void>
+  deleteBudgetLimit: (categoryId: string, year: number, month: number) => Promise<void>
+  setBudgetLimitsInBatch: (limits: {categoryId: string, limit: number}[], year: number, month: number) => Promise<void>
+  copyBudgetFromMonth: (fromYear: number, fromMonth: number, toYear: number, toMonth: number) => Promise<void>
+
+  addSubcategory: (categoryId: string, name: string, color: string | null) => Promise<Subcategory>
+  updateSubcategory: (id: string, name: string, color: string | null) => Promise<void>
+  deleteSubcategory: (id: string) => Promise<void>
 
   navigate: (view: View) => void
 }
@@ -114,6 +122,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
   const [futureBills, setFutureBills] = useState<FutureBillMonth[]>([])
   const [billPayments, setBillPayments] = useState<CardBillPayment[]>([])
   const [budgetLimits, setBudgetLimits] = useState<BudgetLimit[]>([])
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
 
@@ -146,12 +155,12 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
       const nowYear = now.getFullYear()
       const nowMonth = now.getMonth() + 1
 
-      const [txRes, incRes, peopleRes, catRes, accountsRes, cardsRes, txfRes, futureTxRes, paymentsRes, budgetRes] = await Promise.all([
+      const [txRes, incRes, peopleRes, catRes, accountsRes, cardsRes, txfRes, futureTxRes, paymentsRes, budgetRes, subcatRes] = await Promise.all([
         // Load transactions: both date-based and billing-month-based for cards
         supabase
           .from('transactions')
           .select(
-            '*, category:categories(*), transaction_people(*, person:people(*)), credit_card:credit_cards(*), bank_account:bank_accounts(*)',
+            '*, category:categories(*), subcategory:subcategories(*), transaction_people(*, person:people(*)), credit_card:credit_cards(*), bank_account:bank_accounts(*)',
           )
           .or(
             `and(date.gte.${start},date.lte.${end},credit_card_id.is.null),` +
@@ -177,7 +186,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
         // Future card transactions (next 6 months from today)
         supabase
           .from('transactions')
-          .select('*, credit_card:credit_cards(*)')
+          .select('*, subcategory:subcategories(*), credit_card:credit_cards(*)')
           .not('credit_card_id', 'is', null)
           .not('billing_year', 'is', null)
           .or(`billing_year.gt.${nowYear},and(billing_year.eq.${nowYear},billing_month.gt.${nowMonth})`)
@@ -192,7 +201,11 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
         // Budget limits
         supabase
           .from('budget_limits')
-          .select('*, category:categories(*)'),
+          .select('*, category:categories(*)')
+          .eq('year', year)
+          .eq('month', monthNum),
+        // Subcategories
+        supabase.from('subcategories').select('*').order('name'),
       ])
 
       const txData = (txRes.data || []) as Transaction[]
@@ -205,6 +218,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
       const futureTxData = (futureTxRes.data || []) as Transaction[]
       const paymentsData = (paymentsRes.data || []) as CardBillPayment[]
       const budgetData = (budgetRes.data || []) as BudgetLimit[]
+      const subcatData = (subcatRes.data || []) as Subcategory[]
 
       setTransactions(txData)
       setIncomes(incData)
@@ -215,6 +229,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
       setTransfers(txfData)
       setBillPayments(paymentsData)
       setBudgetLimits(budgetData)
+      setSubcategories(subcatData)
 
       // Compute future bills grouped by billing period (next 6 months)
       const paymentsSet = new Set(
@@ -383,7 +398,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
     const [freshTx, freshInc] = await Promise.all([
       supabase
         .from('transactions')
-        .select('*, category:categories(*), transaction_people(*, person:people(*)), credit_card:credit_cards(*), bank_account:bank_accounts(*)')
+        .select('*, category:categories(*), subcategory:subcategories(*), transaction_people(*, person:people(*)), credit_card:credit_cards(*), bank_account:bank_accounts(*)')
         .or(`and(date.gte.${s2},date.lte.${e2},credit_card_id.is.null),and(billing_year.eq.${yr},billing_month.eq.${mo},credit_card_id.not.is.null)`)
         .order('date', { ascending: false }),
       supabase.from('incomes').select('*').gte('date', s2).lte('date', e2).order('date', { ascending: false }),
@@ -786,20 +801,82 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
   }
 
   // ─── Budget Limits ──────────────────────────────────────────────
-  const setBudgetLimit = async (categoryId: string, limit: number) => {
+  const setBudgetLimit = async (categoryId: string, limit: number, year: number, month: number) => {
     const { error } = await supabase
       .from('budget_limits')
-      .upsert({ category_id: categoryId, monthly_limit: limit, updated_at: new Date().toISOString() }, { onConflict: 'category_id' })
+      .upsert({ category_id: categoryId, monthly_limit: limit, year, month, updated_at: new Date().toISOString() }, { onConflict: 'category_id,year,month' })
     if (error) throw error
     reload()
   }
 
-  const deleteBudgetLimit = async (categoryId: string) => {
+  const deleteBudgetLimit = async (categoryId: string, year: number, month: number) => {
     const { error } = await supabase
       .from('budget_limits')
       .delete()
       .eq('category_id', categoryId)
+      .eq('year', year)
+      .eq('month', month)
     if (error) throw error
+    reload()
+  }
+
+  const setBudgetLimitsInBatch = async (limits: {categoryId: string, limit: number}[], year: number, month: number) => {
+    const rows = limits.filter(l => l.limit > 0).map(l => ({
+      category_id: l.categoryId,
+      monthly_limit: l.limit,
+      year,
+      month,
+      updated_at: new Date().toISOString(),
+    }))
+    if (rows.length === 0) return
+    const { error } = await supabase
+      .from('budget_limits')
+      .upsert(rows, { onConflict: 'category_id,year,month' })
+    if (error) throw error
+    reload()
+  }
+
+  const copyBudgetFromMonth = async (fromYear: number, fromMonth: number, toYear: number, toMonth: number) => {
+    const { data: sourceLimits } = await supabase
+      .from('budget_limits')
+      .select('category_id, monthly_limit')
+      .eq('year', fromYear)
+      .eq('month', fromMonth)
+    if (!sourceLimits || sourceLimits.length === 0) return
+    const rows = sourceLimits.map(l => ({
+      category_id: l.category_id,
+      monthly_limit: l.monthly_limit,
+      year: toYear,
+      month: toMonth,
+      updated_at: new Date().toISOString(),
+    }))
+    const { error } = await supabase
+      .from('budget_limits')
+      .upsert(rows, { onConflict: 'category_id,year,month' })
+    if (error) throw error
+    reload()
+  }
+
+  // ─── Subcategories ──────────────────────────────────────────────
+  const addSubcategory = async (categoryId: string, name: string, color: string | null): Promise<Subcategory> => {
+    const { data, error } = await supabase
+      .from('subcategories')
+      .insert({ category_id: categoryId, name, color })
+      .select()
+      .maybeSingle()
+    if (error) throw error
+    if (!data) throw new Error('Failed to create subcategory')
+    setSubcategories(prev => [...prev, data as Subcategory].sort((a, b) => a.name.localeCompare(b.name)))
+    return data as Subcategory
+  }
+
+  const updateSubcategory = async (id: string, name: string, color: string | null) => {
+    await supabase.from('subcategories').update({ name, color }).eq('id', id)
+    reload()
+  }
+
+  const deleteSubcategory = async (id: string) => {
+    await supabase.from('subcategories').delete().eq('id', id)
     reload()
   }
 
@@ -837,6 +914,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
         futureBills,
         billPayments,
         budgetLimits,
+        subcategories,
         loading,
         selectedMonth,
         setSelectedMonth,
@@ -871,6 +949,12 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
 
         setBudgetLimit,
         deleteBudgetLimit,
+        setBudgetLimitsInBatch,
+        copyBudgetFromMonth,
+
+        addSubcategory,
+        updateSubcategory,
+        deleteSubcategory,
 
         navigate: onNavigate || (() => {}),
       }}

@@ -43,7 +43,7 @@ export function TransactionForm({
   editTransaction,
   defaultMethod,
 }: TransactionFormProps) {
-  const { categories, people, cardAccounts, bankAccounts, addTransaction, updateTransaction, addInstallments, addPerson, addCategory } =
+  const { categories, people, cardAccounts, bankAccounts, subcategories, addTransaction, updateTransaction, addInstallments, addPerson, addCategory } =
     useFinance()
 
   const [date, setDate] = useState(todayString())
@@ -52,6 +52,7 @@ export function TransactionForm({
   const [method, setMethod] = useState<TransactionMethod>(defaultMethod || 'credit_card')
   const [type, setType] = useState<TransactionType>('mine')
   const [categoryId, setCategoryId] = useState<string>('none')
+  const [subcategoryId, setSubcategoryId] = useState<string>('none')
   const [isRecurring, setIsRecurring] = useState(false)
   const [recurringDay, setRecurringDay] = useState<string>('')
   const [notes, setNotes] = useState('')
@@ -92,6 +93,7 @@ export function TransactionForm({
       setMethod(editTransaction.method)
       setType(editTransaction.type)
       setCategoryId(editTransaction.category_id || 'none')
+      setSubcategoryId(editTransaction.subcategory_id || 'none')
       setIsRecurring(editTransaction.is_recurring)
       setRecurringDay(editTransaction.recurring_day?.toString() || '')
       setNotes(editTransaction.notes || '')
@@ -118,6 +120,7 @@ export function TransactionForm({
     setMethod(defaultMethod || 'credit_card')
     setType('mine')
     setCategoryId('none')
+    setSubcategoryId('none')
     setIsRecurring(false)
     setRecurringDay('')
     setNotes('')
@@ -226,6 +229,7 @@ export function TransactionForm({
         method,
         type,
         category_id: categoryId === 'none' ? null : categoryId,
+        subcategory_id: subcategoryId === 'none' ? null : subcategoryId,
         bank_account_id: method !== 'credit_card' && bankAccountId ? bankAccountId : null,
         credit_card_id: method === 'credit_card' && creditCardId ? creditCardId : null,
         purchase_date: method === 'credit_card' ? purchaseDate : null,
@@ -546,7 +550,7 @@ export function TransactionForm({
             {/* Category */}
             <div className="space-y-1.5">
               <Label>Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
+              <Select value={categoryId} onValueChange={v => { setCategoryId(v); setSubcategoryId('none') }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecionar categoria" />
                 </SelectTrigger>
@@ -600,6 +604,30 @@ export function TransactionForm({
                 </div>
               )}
             </div>
+
+            {/* Subcategory */}
+            {categoryId !== 'none' && (() => {
+              const catSubs = subcategories.filter(s => s.category_id === categoryId)
+              if (catSubs.length === 0) return null
+              return (
+                <div className="space-y-1.5">
+                  <Label>Subcategoria</Label>
+                  <Select value={subcategoryId} onValueChange={setSubcategoryId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar subcategoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem subcategoria</SelectItem>
+                      {catSubs.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )
+            })()}
 
             {/* Recurring */}
             <div className="flex items-center justify-between rounded-lg border border-border p-3">

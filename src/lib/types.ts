@@ -3,10 +3,20 @@ export type TransactionType = 'mine' | 'repasse' | 'rateado'
 export type ReimbursementStatus = 'pending' | 'received'
 export type View = 'dashboard' | 'transactions' | 'credit-card' | 'receivables' | 'settings' | 'import' | 'budget'
 
+export interface Subcategory {
+  id: string
+  category_id: string
+  name: string
+  color: string | null
+  created_at: string
+}
+
 export interface BudgetLimit {
   id: string
   category_id: string
   monthly_limit: number
+  year: number
+  month: number
   created_at: string
   updated_at: string
   category?: Category
@@ -50,6 +60,7 @@ export interface Category {
   name: string
   color: string
   created_at: string
+  subcategories?: Subcategory[]
 }
 
 export interface Person {
@@ -78,6 +89,7 @@ export interface Transaction {
   method: TransactionMethod
   type: TransactionType
   category_id: string | null
+  subcategory_id: string | null
   bank_account_id: string | null
   credit_card_id: string | null
   purchase_date: string | null
@@ -92,6 +104,7 @@ export interface Transaction {
   notes: string | null
   created_at: string
   category?: Category
+  subcategory?: Subcategory
   transaction_people?: TransactionPerson[]
   credit_card?: CardAccount
   bank_account?: BankAccount
@@ -118,6 +131,7 @@ export interface TransactionFormData {
   method: TransactionMethod
   type: TransactionType
   category_id: string | null
+  subcategory_id: string | null
   bank_account_id: string | null
   credit_card_id: string | null
   purchase_date: string | null

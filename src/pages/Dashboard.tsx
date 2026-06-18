@@ -26,7 +26,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
-import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { PieChart, Pie, Cell } from 'recharts'
 import type { ChartConfig } from '@/components/ui/chart'
 import { METHOD_LABELS } from '@/lib/types'
 import type { CategoryStat, BankAccount, Transaction, PersonReceivable, BudgetLimit } from '@/lib/types'
@@ -65,14 +65,13 @@ export function Dashboard() {
   const budgetOverCount = budgetCategories.filter((c: CategoryStat) => c.myAmount > limitMap.get(c.category!.id)!).length
 
   const chartData = byCategory.slice(0, 6).map((c: CategoryStat) => ({
-    name: c.label.length > 12 ? c.label.slice(0, 10) + '…' : c.label,
-    bruto: c.amount,
-    meu: c.myAmount,
+    name: c.label,
+    value: c.myAmount,
+    color: c.color,
   }))
 
   const chartConfig: ChartConfig = {
-    bruto: { label: 'Bruto', color: 'var(--chart-2)' },
-    meu: { label: 'Meu gasto', color: 'var(--chart-1)' },
+    value: { label: 'Gasto' },
   }
 
   return (
@@ -355,7 +354,7 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Category chart */}
+      {/* Category donut chart - Pierre style */}
       {!loading && chartData.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4">
@@ -364,20 +363,50 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
-            <ChartContainer config={chartConfig} className="h-[170px] w-full">
-              <BarChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: -20 }} barGap={2}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent formatter={(v) => formatBRL(Number(v))} />} />
-                <Bar dataKey="bruto" fill="var(--color-bruto)" radius={[4, 4, 0, 0]} opacity={0.35} />
-                <Bar dataKey="meu" fill="var(--color-meu)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
+            <div className="flex items-center gap-4">
+              <div className="relative h-[140px] w-[140px] shrink-0">
+                <ChartContainer config={chartConfig} className="h-[140px] w-[140px]">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={42}
+                      outerRadius={65}
+                      paddingAngle={2}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      {chartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => formatBRL(Number(v))} />} />
+                  </PieChart>
+                </ChartContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[10px] text-tertiary">Total</span>
+                  <span className="font-mono text-sm font-bold tabular-nums">{formatBRL(gastoRealMeu)}</span>
+                </div>
+              </div>
+              <div className="flex-1 space-y-1.5 min-w-0">
+                {byCategory.slice(0, 5).map((c: CategoryStat) => (
+                  <div key={c.label} className="flex items-center gap-2">
+                    <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                    <span className="flex-1 truncate text-xs text-muted-foreground">{c.label}</span>
+                    <span className="font-mono text-xs font-medium tabular-nums">{formatBRL(c.myAmount)}</span>
+                  </div>
+                ))}
+                {byCategory.length > 5 && (
+                  <p className="text-[10px] text-tertiary pl-4">+{byCategory.length - 5} mais</p>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Method breakdown */}
+      {/* Method breakdown - Pierre style */}
       {!loading && byMethod.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4">
@@ -386,24 +415,26 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pb-4">
-            {byMethod.map(m => (
-              <div key={m.method} className="flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="truncate text-muted-foreground">{m.label}</span>
-                    <span className="ml-2 font-mono font-medium tabular-nums">
+            {byMethod.map(m => {
+              const pct = gastoRealMeu > 0 ? (m.myAmount / gastoRealMeu) * 100 : 0
+              return (
+                <div key={m.method}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">{m.label}</span>
+                    <span className="font-mono font-medium tabular-nums">
                       {formatBRL(m.myAmount)}
-                      {m.amount !== m.myAmount && (
-                        <span className="ml-1 text-xs font-normal text-muted-foreground">/ {formatBRL(m.amount)} bruto</span>
-                      )}
                     </span>
                   </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${gastoRealMeu > 0 ? (m.myAmount / gastoRealMeu) * 100 : 0}%` }} />
+                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
+                  <p className="text-[10px] text-tertiary mt-0.5 text-right">{pct.toFixed(0)}%</p>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </CardContent>
         </Card>
       )}
