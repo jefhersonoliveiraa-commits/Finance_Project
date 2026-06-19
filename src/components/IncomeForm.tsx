@@ -91,22 +91,23 @@ export function IncomeForm({ open, onOpenChange, editIncome }: IncomeFormProps) 
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
+      <DrawerContent className="max-h-[92dvh]">
+        <DrawerHeader className="shrink-0">
           <DrawerTitle>{editIncome ? 'Editar Receita' : 'Nova Receita'}</DrawerTitle>
         </DrawerHeader>
-        <div className="px-4 pb-2 space-y-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="inc-date">Data</Label>
               <Input
                 id="inc-date"
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
+                className="text-xs"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="inc-amount">Valor (R$)</Label>
               <Input
                 id="inc-amount"
@@ -184,7 +185,7 @@ export function IncomeForm({ open, onOpenChange, editIncome }: IncomeFormProps) 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
-        <DrawerFooter>
+        <DrawerFooter className="shrink-0">
           <Button onClick={handleSubmit} disabled={saving} className="w-full">
             {saving ? 'Salvando...' : editIncome ? 'Atualizar' : 'Salvar Receita'}
           </Button>

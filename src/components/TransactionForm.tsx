@@ -271,25 +271,26 @@ export function TransactionForm({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[95dvh]">
-        <DrawerHeader className="pb-2">
+      <DrawerContent className="max-h-[92dvh]">
+        <DrawerHeader className="shrink-0 pb-2">
           <DrawerTitle>{editTransaction ? 'Editar Gasto' : 'Novo Gasto'}</DrawerTitle>
         </DrawerHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
           <div className="space-y-4">
             {/* Date + Method */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="tx-date">Data</Label>
                 <Input
                   id="tx-date"
                   type="date"
                   value={date}
                   onChange={e => setDate(e.target.value)}
+                  className="text-xs"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="tx-method">Método</Label>
                 <Select value={method} onValueChange={v => setMethod(v as TransactionMethod)}>
                   <SelectTrigger id="tx-method">
@@ -309,7 +310,7 @@ export function TransactionForm({
             {method === 'credit_card' && (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="tx-card">Cartão</Label>
                     <Select value={creditCardId} onValueChange={setCreditCardId}>
                       <SelectTrigger id="tx-card">
@@ -330,7 +331,7 @@ export function TransactionForm({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="tx-parcelas">Parcelas</Label>
                     <Select value={installmentCount} onValueChange={setInstallmentCount}>
                       <SelectTrigger id="tx-parcelas">
@@ -692,7 +693,7 @@ export function TransactionForm({
           </div>
         </div>
 
-        <DrawerFooter className="pt-2">
+        <DrawerFooter className="shrink-0 pt-2">
           <Button onClick={handleSubmit} disabled={saving} className="w-full">
             {saving ? 'Salvando...' : editTransaction ? 'Atualizar' : 'Salvar Gasto'}
           </Button>

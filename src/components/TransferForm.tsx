@@ -78,12 +78,12 @@ export function TransferForm({ open, onOpenChange }: TransferFormProps) {
 
   return (
     <Drawer open={open} onOpenChange={(o) => { if (!o) resetForm(); onOpenChange(o) }}>
-      <DrawerContent className="max-h-[95dvh]">
-        <DrawerHeader className="pb-2">
+      <DrawerContent className="max-h-[92dvh]">
+        <DrawerHeader className="shrink-0 pb-2">
           <DrawerTitle>Nova Transferência</DrawerTitle>
         </DrawerHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="txf-date">Data</Label>
@@ -196,7 +196,7 @@ export function TransferForm({ open, onOpenChange }: TransferFormProps) {
           </div>
         </div>
 
-        <DrawerFooter className="pt-2">
+        <DrawerFooter className="shrink-0 pt-2">
           <Button onClick={handleSubmit} disabled={saving} className="w-full">
             {saving ? 'Transferindo...' : 'Transferir'}
           </Button>

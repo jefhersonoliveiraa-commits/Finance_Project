@@ -128,7 +128,7 @@ export function CreditCardForm({ open, onOpenChange, editCard }: CreditCardFormP
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="card-closing">Dia Fechamento</Label>
               <Input
                 id="card-closing"
@@ -139,7 +139,7 @@ export function CreditCardForm({ open, onOpenChange, editCard }: CreditCardFormP
                 onChange={e => setClosingDay(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="card-due">Dia Vencimento</Label>
               <Input
                 id="card-due"
