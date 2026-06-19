@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Edit2, Check, X, CreditCard, Wallet, RefreshCw, Download, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Edit2, Check, X, CreditCard, Wallet, RefreshCw, Download, Loader2, LogOut } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -668,6 +668,26 @@ export function SettingsPage() {
                 <Download className="h-3.5 w-3.5" />
               )}
               <span className="ml-1.5">Exportar</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sign out */}
+      <Card>
+        <CardContent className="pb-4 pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Sair da conta</p>
+              <p className="text-xs text-muted-foreground">Encerrar sessão neste dispositivo.</p>
+            </div>
+            <Button
+              variant="outline"
+              className="ml-4 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10"
+              onClick={() => supabase.auth.signOut()}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="ml-1.5">Sair</span>
             </Button>
           </div>
         </CardContent>
