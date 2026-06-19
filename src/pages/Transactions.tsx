@@ -199,23 +199,23 @@ export function Transactions() {
       {/* Summary strip */}
       {!loading && (
         <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm py-2.5 px-2">
+          <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm py-2.5 px-1.5 min-w-0">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entrou</p>
-            <p className="text-base font-bold tabular-nums font-mono text-positive">+{formatBRL(stats.totalIncome)}</p>
+            <p className="text-sm font-bold tabular-nums font-mono text-positive truncate">+{formatBRL(stats.totalIncome)}</p>
           </div>
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 py-2.5 px-2">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 py-2.5 px-1.5 min-w-0">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saiu</p>
-            <p className="text-base font-bold tabular-nums font-mono text-destructive">−{formatBRL(stats.gastoRealMeu)}</p>
+            <p className="text-sm font-bold tabular-nums font-mono text-destructive truncate">&minus;{formatBRL(stats.gastoRealMeu)}</p>
           </div>
           <div className={cn(
-            'rounded-2xl border py-2.5 px-2',
+            'rounded-2xl border py-2.5 px-1.5 min-w-0',
             stats.sobraReal >= 0
               ? 'border-positive/20 bg-positive/5'
               : 'border-destructive/20 bg-destructive/5',
           )}>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saldo</p>
             <p className={cn(
-              'text-base font-bold tabular-nums font-mono',
+              'text-sm font-bold tabular-nums font-mono truncate',
               stats.sobraReal >= 0 ? 'text-positive' : 'text-destructive',
             )}>
               {formatBRL(stats.sobraReal)}

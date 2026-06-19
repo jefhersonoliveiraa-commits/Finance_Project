@@ -287,7 +287,6 @@ export function TransactionForm({
                   type="date"
                   value={date}
                   onChange={e => setDate(e.target.value)}
-                  className="text-xs"
                 />
               </div>
               <div className="min-w-0 space-y-1.5">
@@ -298,7 +297,7 @@ export function TransactionForm({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="credit_card">Cartão Crédito</SelectItem>
-                    <SelectItem value="pix">PIX / Transferência</SelectItem>
+                    <SelectItem value="pix">PIX</SelectItem>
                     <SelectItem value="debit">Débito</SelectItem>
                     <SelectItem value="cash">Dinheiro</SelectItem>
                   </SelectContent>

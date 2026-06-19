@@ -177,4 +177,10 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+  /* Prevent iOS zoom on focus for inputs smaller than 16px */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
 }

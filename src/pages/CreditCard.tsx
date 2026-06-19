@@ -195,23 +195,23 @@ function CardBillSummary({
         <p className="text-3xl font-bold tabular-nums">{formatBRL(total)}</p>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
             Realmente Meu
           </p>
-          <p className="text-xl font-bold">{formatBRL(mine)}</p>
+          <p className="text-xl font-bold truncate">{formatBRL(mine)}</p>
           {total > 0 && (
             <p className="text-xs text-muted-foreground">
               {Math.round((mine / total) * 100)}% da fatura
             </p>
           )}
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
             A Receber
           </p>
           <p className={cn(
-            'text-xl font-bold',
+            'text-xl font-bold truncate',
             toReceive > 0
               ? 'text-amber-600 dark:text-amber-400'
               : 'text-muted-foreground',
@@ -265,7 +265,6 @@ function CardBillDetail({
 
   const recurring = transactions.filter(t => t.is_recurring)
   const nonRecurring = transactions.filter(t => !t.is_recurring)
-  const totalTxs = transactions.reduce((s, t) => s + t.amount, 0)
   const totalMine = transactions.reduce((s, t) => s + t.my_amount, 0)
 
   const annualTotal = recurring.reduce((s, t) => s + t.my_amount, 0) * 12
@@ -302,32 +301,27 @@ function CardBillDetail({
         onClick={() => setExpanded(v => !v)}
       >
         <CardHeader className="pb-2 pt-4">
-          <CardTitle className="flex items-center justify-between text-sm font-semibold">
-            <div className="flex items-center gap-2">
+          <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
+            <div className="flex items-center gap-2 min-w-0">
               {card ? (
                 <>
                   <span
-                    className="inline-block h-3 w-3 rounded-full"
+                    className="inline-block h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: card.color }}
                   />
-                  <span>{card.name}</span>
+                  <span className="truncate">{card.name}</span>
                   {isPaid && (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   )}
                 </>
               ) : (
                 <span className="text-muted-foreground">Sem cartão</span>
               )}
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <span className={cn('font-bold', isPaid && 'text-emerald-700 dark:text-emerald-300')}>
                 {formatBRL(totalMine)}
               </span>
-              {totalTxs !== totalMine && (
-                <span className="text-xs text-muted-foreground font-normal ml-1">
-                  ({formatBRL(totalTxs)} bruto)
-                </span>
-              )}
             </div>
           </CardTitle>
         </CardHeader>

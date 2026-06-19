@@ -333,16 +333,15 @@ export function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-2 pb-4">
             {subscriptions.slice(0, 4).map((sub, i) => (
-              <div key={i} className="flex items-center justify-between text-sm">
-                <div className="flex min-w-0 items-center gap-2">
+              <div key={i} className="flex items-center justify-between gap-2 text-sm">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   {sub.card && (
                     <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: sub.card.color }} />
                   )}
                   <span className="truncate">{sub.description}</span>
                 </div>
                 <div className="shrink-0 text-right">
-                  <span className="font-mono font-medium tabular-nums">{formatBRL(sub.monthlyAmount)}/mês</span>
-                  <span className="ml-1 text-xs text-muted-foreground">({formatBRL(sub.annualAmount)}/ano)</span>
+                  <span className="font-mono font-medium tabular-nums text-xs">{formatBRL(sub.monthlyAmount)}/mês</span>
                 </div>
               </div>
             ))}
@@ -530,9 +529,9 @@ function SmallMetric({
   highlight?: boolean
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-2.5 text-center">
+    <div className="rounded-xl border border-border bg-card p-2.5 text-center min-w-0">
       <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn('mt-0.5 font-mono text-sm font-bold tabular-nums', highlight && 'text-amber-400')}>
+      <p className={cn('mt-0.5 font-mono text-sm font-bold tabular-nums truncate', highlight && 'text-amber-400')}>
         {formatBRL(value)}
       </p>
     </div>

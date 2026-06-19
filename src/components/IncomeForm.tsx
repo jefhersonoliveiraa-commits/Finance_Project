@@ -104,7 +104,6 @@ export function IncomeForm({ open, onOpenChange, editIncome }: IncomeFormProps) 
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="text-xs"
               />
             </div>
             <div className="min-w-0 space-y-1.5">
