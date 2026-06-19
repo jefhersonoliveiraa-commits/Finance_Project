@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Trash2, Edit2, Filter, Upload, RefreshCw } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Filter, Upload, RefreshCw, TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,18 +22,29 @@ import {
 } from '@/components/ui/alert-dialog'
 import { MonthSelector } from '@/components/layout/MonthSelector'
 import { TransactionForm } from '@/components/TransactionForm'
+import { IncomeForm } from '@/components/IncomeForm'
 import { useFinance } from '@/context/FinanceContext'
-import { formatBRL } from '@/lib/format'
+import { formatBRL, formatDate } from '@/lib/format'
 import { getCategoryIcon } from '@/lib/category-icons'
 import { TYPE_LABELS } from '@/lib/types'
-import type { Transaction, TransactionMethod, TransactionType } from '@/lib/types'
+import type { Transaction, Income, TransactionMethod, TransactionType } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+type EntryKind = 'expense' | 'income'
+
+interface Entry {
+  id: string
+  date: string
+  kind: EntryKind
+  expense?: Transaction
+  income?: Income
+}
 
 interface DayGroup {
   date: string
   label: string
   subtotal: number
-  transactions: Transaction[]
+  entries: Entry[]
 }
 
 const METHOD_LABEL_SHORT: Record<TransactionMethod, string> = {
@@ -57,101 +68,157 @@ function dayLabel(dateStr: string): string {
 }
 
 export function Transactions() {
-  const { transactions, categories, people, loading, deleteTransaction, stats, navigate } = useFinance()
+  const { transactions, incomes, categories, people, loading, deleteTransaction, deleteIncome, stats, navigate } = useFinance()
 
   const [txOpen, setTxOpen] = useState(false)
+  const [incOpen, setIncOpen] = useState(false)
   const [editTx, setEditTx] = useState<Transaction | null>(null)
+  const [editInc, setEditInc] = useState<Income | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteKind, setDeleteKind] = useState<EntryKind>('expense')
+  const [fabOpen, setFabOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [filterKind, setFilterKind] = useState<EntryKind | 'all'>('all')
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all')
   const [filterMethod, setFilterMethod] = useState<TransactionMethod | 'all'>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterPerson, setFilterPerson] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
 
-  const filtered = useMemo(() => transactions.filter(tx => {
-    if (search && !tx.description.toLowerCase().includes(search.toLowerCase())) return false
-    if (filterType !== 'all' && tx.type !== filterType) return false
-    if (filterMethod !== 'all' && tx.method !== filterMethod) return false
-    if (filterCategory !== 'all' && tx.category_id !== filterCategory) return false
-    if (filterPerson !== 'all') {
-      const hasP = tx.transaction_people?.some(tp => tp.person_id === filterPerson)
-      if (!hasP) return false
+  const allEntries = useMemo<Entry[]>(() => {
+    const expenses: Entry[] = transactions.map(tx => ({
+      id: tx.id,
+      date: tx.date,
+      kind: 'expense' as const,
+      expense: tx,
+    }))
+    const incs: Entry[] = incomes.map(inc => ({
+      id: inc.id,
+      date: inc.date,
+      kind: 'income' as const,
+      income: inc,
+    }))
+    return [...expenses, ...incs]
+  }, [transactions, incomes])
+
+  const filtered = useMemo(() => allEntries.filter(entry => {
+    if (filterKind !== 'all' && entry.kind !== filterKind) return false
+    if (entry.kind === 'expense') {
+      const tx = entry.expense!
+      if (search && !tx.description.toLowerCase().includes(search.toLowerCase())) return false
+      if (filterType !== 'all' && tx.type !== filterType) return false
+      if (filterMethod !== 'all' && tx.method !== filterMethod) return false
+      if (filterCategory !== 'all' && tx.category_id !== filterCategory) return false
+      if (filterPerson !== 'all') {
+        const hasP = tx.transaction_people?.some(tp => tp.person_id === filterPerson)
+        if (!hasP) return false
+      }
+    } else {
+      const inc = entry.income!
+      if (search && !inc.description.toLowerCase().includes(search.toLowerCase())) return false
+      if (filterType !== 'all') return false
+      if (filterMethod !== 'all') return false
+      if (filterCategory !== 'all') return false
+      if (filterPerson !== 'all') return false
     }
     return true
-  }), [transactions, search, filterType, filterMethod, filterCategory, filterPerson])
+  }), [allEntries, search, filterKind, filterType, filterMethod, filterCategory, filterPerson])
 
   const dayGroups = useMemo<DayGroup[]>(() => {
     const groupsMap = new Map<string, DayGroup>()
-    for (const tx of filtered) {
-      if (!groupsMap.has(tx.date)) {
-        groupsMap.set(tx.date, {
-          date: tx.date,
-          label: dayLabel(tx.date),
+    for (const entry of filtered) {
+      if (!groupsMap.has(entry.date)) {
+        groupsMap.set(entry.date, {
+          date: entry.date,
+          label: dayLabel(entry.date),
           subtotal: 0,
-          transactions: [],
+          entries: [],
         })
       }
-      const group = groupsMap.get(tx.date)!
-      group.transactions.push(tx)
-      group.subtotal += tx.my_amount
+      const group = groupsMap.get(entry.date)!
+      group.entries.push(entry)
+      if (entry.kind === 'expense') {
+        group.subtotal -= entry.expense!.my_amount
+      } else {
+        group.subtotal += entry.income!.amount
+      }
     }
     return Array.from(groupsMap.values()).sort((a, b) => (a.date < b.date ? 1 : -1))
   }, [filtered])
 
-  function handleEdit(tx: Transaction) {
+  function handleEditTx(tx: Transaction) {
     setEditTx(tx)
     setTxOpen(true)
   }
 
+  function handleEditInc(inc: Income) {
+    setEditInc(inc)
+    setIncOpen(true)
+  }
+
   async function handleDelete() {
     if (!deleteId) return
-    await deleteTransaction(deleteId)
+    if (deleteKind === 'expense') {
+      await deleteTransaction(deleteId)
+    } else {
+      await deleteIncome(deleteId)
+    }
     setDeleteId(null)
   }
+
+  function confirmDelete(id: string, kind: EntryKind) {
+    setDeleteId(id)
+    setDeleteKind(kind)
+  }
+
+  const hasActiveFilters = filterKind !== 'all' || filterType !== 'all' || filterMethod !== 'all' || filterCategory !== 'all' || filterPerson !== 'all'
 
   return (
     <div className="flex flex-col gap-4 p-4 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Gastos</h1>
+          <h1 className="text-xl font-bold tracking-tight">Lançamentos</h1>
           <MonthSelector className="mt-0.5" />
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('import')}
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate('import')}>
             <Upload className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowFilters(v => !v)}
-            className={cn(showFilters && 'text-primary')}
+            className={cn(hasActiveFilters && 'text-primary')}
           >
             <Filter className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Summary strip — frosted glass cards */}
+      {/* Summary strip */}
       {!loading && (
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm py-2.5 px-2">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
-            <p className="text-base font-bold tabular-nums font-mono">{formatBRL(stats.gastoBruto)}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entrou</p>
+            <p className="text-base font-bold tabular-nums font-mono text-positive">+{formatBRL(stats.totalIncome)}</p>
           </div>
-          <div className="rounded-2xl border border-primary/30 bg-accent/40 backdrop-blur-sm py-2.5 px-2">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Meu real</p>
-            <p className="text-base font-bold tabular-nums font-mono">{formatBRL(stats.gastoRealMeu)}</p>
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 py-2.5 px-2">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saiu</p>
+            <p className="text-base font-bold tabular-nums font-mono text-destructive">−{formatBRL(stats.gastoRealMeu)}</p>
           </div>
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 py-2.5 px-2">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">A receber</p>
-            <p className="text-base font-bold tabular-nums font-mono text-amber-600 dark:text-amber-400">
-              {formatBRL(stats.aReceberPending)}
+          <div className={cn(
+            'rounded-2xl border py-2.5 px-2',
+            stats.sobraReal >= 0
+              ? 'border-positive/20 bg-positive/5'
+              : 'border-destructive/20 bg-destructive/5',
+          )}>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Saldo</p>
+            <p className={cn(
+              'text-base font-bold tabular-nums font-mono',
+              stats.sobraReal >= 0 ? 'text-positive' : 'text-destructive',
+            )}>
+              {formatBRL(stats.sobraReal)}
             </p>
           </div>
         </div>
@@ -170,62 +237,78 @@ export function Transactions() {
 
       {/* Filters */}
       {showFilters && (
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={filterType}
-            onValueChange={v => setFilterType(v as TransactionType | 'all')}
-          >
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="mine">Meu</SelectItem>
-              <SelectItem value="repasse">Repasse</SelectItem>
-              <SelectItem value="rateado">Rateado</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filterMethod}
-            onValueChange={v => setFilterMethod(v as TransactionMethod | 'all')}
-          >
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="Método" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os métodos</SelectItem>
-              <SelectItem value="credit_card">Cartão</SelectItem>
-              <SelectItem value="pix">PIX</SelectItem>
-              <SelectItem value="debit">Débito</SelectItem>
-              <SelectItem value="cash">Dinheiro</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {categories.map(c => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterPerson} onValueChange={setFilterPerson}>
-            <SelectTrigger className="text-xs">
-              <SelectValue placeholder="Pessoa" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as pessoas</SelectItem>
-              {people.map(p => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="space-y-2">
+          <div className="flex rounded-xl border border-border overflow-hidden text-xs">
+            {([
+              { v: 'all', label: 'Todos' },
+              { v: 'expense', label: 'Gastos' },
+              { v: 'income', label: 'Receitas' },
+            ] as { v: EntryKind | 'all'; label: string }[]).map(opt => (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => setFilterKind(opt.v)}
+                className={cn(
+                  'flex-1 py-2 font-medium transition-colors',
+                  filterKind === opt.v
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {filterKind !== 'income' && (
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={filterType} onValueChange={v => setFilterType(v as TransactionType | 'all')}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="mine">Meu</SelectItem>
+                  <SelectItem value="repasse">Repasse</SelectItem>
+                  <SelectItem value="rateado">Rateado</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterMethod} onValueChange={v => setFilterMethod(v as TransactionMethod | 'all')}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Método" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os métodos</SelectItem>
+                  <SelectItem value="credit_card">Cartão</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="debit">Débito</SelectItem>
+                  <SelectItem value="cash">Dinheiro</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterPerson} onValueChange={setFilterPerson}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Pessoa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as pessoas</SelectItem>
+                  {people.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 
@@ -238,42 +321,53 @@ export function Transactions() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+            <ArrowUpDown className="h-6 w-6 text-muted-foreground" />
+          </div>
           <p className="text-muted-foreground text-sm">
-            {search || filterType !== 'all' || filterMethod !== 'all'
-              ? 'Nenhum resultado'
-              : 'Nenhum gasto neste mês'}
+            {search || hasActiveFilters
+              ? 'Nenhum resultado encontrado'
+              : 'Nenhum lançamento neste mês'}
           </p>
           <Button size="sm" onClick={() => { setEditTx(null); setTxOpen(true) }}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar gasto
+            <Plus className="h-3.5 w-3.5 mr-1" /> Novo lançamento
           </Button>
         </div>
       ) : (
         <div className="space-y-6">
           {dayGroups.map(group => (
             <div key={group.date} className="space-y-1">
-              {/* Day header */}
               <div className="flex items-center justify-between px-1 pb-2 pt-1">
                 <span className="text-xs font-semibold capitalize text-muted-foreground tracking-wide">
                   {group.label}
                 </span>
                 <span className={cn(
-                  "text-xs font-bold tabular-nums",
-                  group.subtotal >= 0 ? "text-positive" : "text-muted-foreground"
+                  'text-xs font-bold tabular-nums font-mono',
+                  group.subtotal >= 0 ? 'text-positive' : 'text-destructive',
                 )}>
                   {group.subtotal >= 0 ? '+' : ''}{formatBRL(group.subtotal)}
                 </span>
               </div>
 
-              {/* Day's transactions — single frosted glass surface */}
               <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-md overflow-hidden">
-                {group.transactions.map((tx, idx) => (
-                  <TransactionRow
-                    key={tx.id}
-                    tx={tx}
-                    isLast={idx === group.transactions.length - 1}
-                    onEdit={() => handleEdit(tx)}
-                    onDelete={() => setDeleteId(tx.id)}
-                  />
+                {group.entries.map((entry, idx) => (
+                  entry.kind === 'expense' ? (
+                    <ExpenseRow
+                      key={entry.id}
+                      tx={entry.expense!}
+                      isLast={idx === group.entries.length - 1}
+                      onEdit={() => handleEditTx(entry.expense!)}
+                      onDelete={() => confirmDelete(entry.id, 'expense')}
+                    />
+                  ) : (
+                    <IncomeRow
+                      key={entry.id}
+                      income={entry.income!}
+                      isLast={idx === group.entries.length - 1}
+                      onEdit={() => handleEditInc(entry.income!)}
+                      onDelete={() => confirmDelete(entry.id, 'income')}
+                    />
+                  )
                 ))}
               </div>
             </div>
@@ -281,27 +375,56 @@ export function Transactions() {
         </div>
       )}
 
-      {/* FAB */}
-      <button
-        onClick={() => { setEditTx(null); setTxOpen(true) }}
-        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 hover:bg-primary/90"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {/* FAB with expand menu */}
+      <div className="fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2">
+        {fabOpen && (
+          <>
+            <button
+              onClick={() => { setFabOpen(false); setEditInc(null); setIncOpen(true) }}
+              className="flex items-center gap-2 rounded-full bg-positive px-4 py-2.5 text-sm font-semibold text-positive-foreground shadow-lg transition-all active:scale-95"
+            >
+              <TrendingUp className="h-4 w-4" />
+              Receita
+            </button>
+            <button
+              onClick={() => { setFabOpen(false); setEditTx(null); setTxOpen(true) }}
+              className="flex items-center gap-2 rounded-full bg-destructive px-4 py-2.5 text-sm font-semibold text-destructive-foreground shadow-lg transition-all active:scale-95"
+            >
+              <TrendingDown className="h-4 w-4" />
+              Gasto
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setFabOpen(v => !v)}
+          className={cn(
+            'flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-all active:scale-95',
+            fabOpen && 'rotate-45',
+          )}
+        >
+          <Plus className="h-6 w-6 transition-transform" />
+        </button>
+      </div>
+
+      {fabOpen && (
+        <div className="fixed inset-0 z-30" onClick={() => setFabOpen(false)} />
+      )}
 
       <TransactionForm
         open={txOpen}
-        onOpenChange={open => {
-          setTxOpen(open)
-          if (!open) setEditTx(null)
-        }}
+        onOpenChange={open => { setTxOpen(open); if (!open) setEditTx(null) }}
         editTransaction={editTx}
+      />
+      <IncomeForm
+        open={incOpen}
+        onOpenChange={open => { setIncOpen(open); if (!open) setEditInc(null) }}
+        editIncome={editInc}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={o => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir {deleteKind === 'income' ? 'receita' : 'lançamento'}?</AlertDialogTitle>
             <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -316,7 +439,7 @@ export function Transactions() {
   )
 }
 
-function TransactionRow({
+function ExpenseRow({
   tx,
   isLast,
   onEdit,
@@ -341,14 +464,9 @@ function TransactionRow({
         className="flex w-full items-center gap-3 px-3 py-3 text-left"
         onClick={() => setExpanded(v => !v)}
       >
-        {/* Category icon */}
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-icon-bg"
-        >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-icon-bg">
           <Icon className="h-5 w-5 text-primary" />
         </div>
-
-        {/* Description + subtitle */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <p className="font-medium text-sm truncate">{tx.description}</p>
@@ -361,16 +479,13 @@ function TransactionRow({
             {peopleText && ` · com ${peopleText}`}
           </p>
         </div>
-
-        {/* Amount */}
         <div className="text-right shrink-0">
-          <AmountDisplay tx={tx} />
+          <ExpenseAmountDisplay tx={tx} />
         </div>
       </button>
 
       {expanded && (
         <div className="px-3 pb-3 space-y-3 pt-1">
-          {/* For rateado/repasse, show people breakdown */}
           {tx.transaction_people && tx.transaction_people.length > 0 && (
             <div className="space-y-2">
               {tx.transaction_people.map(tp => (
@@ -380,44 +495,28 @@ function TransactionRow({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{tp.person?.name || 'Pessoa'}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      deve {formatBRL(tp.amount)}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">deve {formatBRL(tp.amount)}</p>
                   </div>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-medium',
-                      tp.reimbursement_status === 'received'
-                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-                    )}
-                  >
+                  <span className={cn(
+                    'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    tp.reimbursement_status === 'received'
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+                  )}>
                     {tp.reimbursement_status === 'received' ? 'Recebido' : 'Pendente'}
                   </span>
                 </div>
               ))}
             </div>
           )}
-
           {tx.notes && (
             <p className="text-xs text-muted-foreground italic px-1">{tx.notes}</p>
           )}
-
           <div className="flex gap-2 pt-1">
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 h-8 text-xs rounded-xl"
-              onClick={onEdit}
-            >
+            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs rounded-xl" onClick={onEdit}>
               <Edit2 className="h-3 w-3 mr-1" /> Editar
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 h-8 text-xs rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
-              onClick={onDelete}
-            >
+            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10" onClick={onDelete}>
               <Trash2 className="h-3 w-3 mr-1" /> Excluir
             </Button>
           </div>
@@ -427,13 +526,68 @@ function TransactionRow({
   )
 }
 
-function AmountDisplay({ tx }: { tx: Transaction }) {
-  // All transactions are expenses (no income type here). Use my_amount as primary.
+function IncomeRow({
+  income,
+  isLast,
+  onEdit,
+  onDelete,
+}: {
+  income: Income
+  isLast: boolean
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className={cn('transition-colors', !isLast && 'border-b border-border/60')}>
+      <button
+        className="flex w-full items-center gap-3 px-3 py-3 text-left"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-positive/15">
+          <TrendingUp className="h-5 w-5 text-positive" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-sm truncate">{income.description}</p>
+            {income.is_recurring && (
+              <RefreshCw className="h-3 w-3 text-muted-foreground shrink-0" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">
+            Receita{income.is_recurring ? ' · recorrente' : ''}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <span className="font-bold text-sm tabular-nums font-mono text-positive">
+            +{formatBRL(income.amount)}
+          </span>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3 space-y-3 pt-1">
+          <p className="text-xs text-muted-foreground">{formatDate(income.date)}</p>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs rounded-xl" onClick={onEdit}>
+              <Edit2 className="h-3 w-3 mr-1" /> Editar
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10" onClick={onDelete}>
+              <Trash2 className="h-3 w-3 mr-1" /> Excluir
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExpenseAmountDisplay({ tx }: { tx: Transaction }) {
   if (tx.type === 'rateado') {
-    // my portion primary, with "de R$ {total}" below in gray; tag "Rateado"
     return (
       <div className="flex flex-col items-end">
-        <span className="font-bold text-sm tabular-nums font-mono">−{formatBRL(tx.my_amount)}</span>
+        <span className="font-bold text-sm tabular-nums font-mono text-destructive">−{formatBRL(tx.my_amount)}</span>
         <span className="text-[11px] text-muted-foreground">de {formatBRL(tx.amount)}</span>
         <span className="mt-0.5 inline-flex items-center rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
           {TYPE_LABELS[tx.type]}
@@ -443,7 +597,6 @@ function AmountDisplay({ tx }: { tx: Transaction }) {
   }
 
   if (tx.type === 'repasse') {
-    // R$ 0 in gray with "seu" below; tag "Repasse"
     return (
       <div className="flex flex-col items-end">
         <span className="font-bold text-sm tabular-nums font-mono text-muted-foreground">R$ 0</span>
@@ -455,12 +608,9 @@ function AmountDisplay({ tx }: { tx: Transaction }) {
     )
   }
 
-  // mine — expense, negative
   return (
-    <div className="flex flex-col items-end">
-      <span className="font-bold text-sm tabular-nums font-mono text-destructive">
-        −{formatBRL(tx.my_amount)}
-      </span>
-    </div>
+    <span className="font-bold text-sm tabular-nums font-mono text-destructive">
+      −{formatBRL(tx.my_amount)}
+    </span>
   )
 }

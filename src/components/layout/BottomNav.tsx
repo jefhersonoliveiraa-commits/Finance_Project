@@ -9,7 +9,7 @@ interface BottomNavProps {
 
 const items: { view: View; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { view: 'dashboard', label: 'Início', Icon: LayoutDashboard },
-  { view: 'transactions', label: 'Gastos', Icon: ReceiptText },
+  { view: 'transactions', label: 'Lançamentos', Icon: ReceiptText },
   { view: 'credit-card', label: 'Cartão', Icon: CreditCard },
   { view: 'budget', label: 'Orçamento', Icon: Target },
   { view: 'settings', label: 'Config', Icon: Settings },
