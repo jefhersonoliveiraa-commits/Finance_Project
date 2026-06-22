@@ -1,96 +1,108 @@
-import { ChevronDown, ArrowRightLeft, MinusCircle, PlusCircle, TrendingUp, Wallet, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { ChevronDown, ArrowRightLeft, MinusCircle, PlusCircle, TrendingUp, ArrowDownLeft, ArrowUpRight, CalendarClock, BarChart3 } from 'lucide-react'
 
 export function Dashboard() {
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-      
-      {/* Header Responsivo */}
-      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="flex items-center justify-between w-full lg:w-auto gap-8">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center justify-between w-full md:w-auto gap-6">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Competência</span>
-            <button className="flex items-center gap-2 mt-1 hover:text-zinc-300 transition-colors">
-              <span className="font-bold text-xl md:text-2xl">Mês Atual</span>
-              <ChevronDown className="w-4 h-4 text-zinc-500" />
-            </button>
+            <div className="flex items-center gap-2 mt-0.5 cursor-pointer hover:text-white transition">
+              <span className="font-bold text-lg">Junho 2026</span>
+              <ChevronDown className="w-4 h-4" />
+            </div>
           </div>
-          
-          {/* Alternador Meu/Terceiros */}
-          <div className="hidden sm:flex items-center bg-zinc-900 border border-white/10 rounded-full p-1">
-            <button className="px-5 py-1.5 rounded-full bg-zinc-800 text-xs font-bold text-white shadow-sm">
-              Geral
-            </button>
-            <button className="px-5 py-1.5 rounded-full text-xs font-bold text-zinc-500 hover:text-white transition">
-              Apenas Meu
-            </button>
+          <div className="flex items-center bg-card border border-border rounded-full p-1 shadow-inner hidden md:flex">
+            <button className="px-4 py-1.5 rounded-full bg-border text-xs font-semibold text-white shadow-sm transition">Visão Geral</button>
+            <button className="px-4 py-1.5 rounded-full text-xs font-semibold text-zinc-400 hover:text-white transition">Apenas Meu</button>
           </div>
         </div>
         
-        {/* Botões de Ação adaptáveis */}
-        <div className="flex gap-2 sm:gap-3 w-full lg:w-auto overflow-x-auto hide-scrollbar pb-2 lg:pb-0">
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-zinc-900/50 hover:bg-zinc-800 transition text-sm font-semibold whitespace-nowrap">
-            <ArrowRightLeft className="w-4 h-4 text-zinc-400" /> <span className="hidden sm:inline">Transferir</span>
+        <div className="hidden md:flex gap-3">
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:bg-muted transition text-sm font-medium">
+            <ArrowRightLeft className="w-4 h-4 text-zinc-400" /> Transferir
           </button>
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-zinc-900/50 hover:bg-zinc-800 transition text-sm font-semibold whitespace-nowrap">
-            <MinusCircle className="w-4 h-4 text-red-500" /> Despesa
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:bg-muted transition text-sm font-medium">
+            <MinusCircle className="w-4 h-4 text-destructive" /> Despesa
           </button>
-          <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 transition-all text-sm font-bold text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] whitespace-nowrap">
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary_fg hover:opacity-90 transition text-sm font-bold shadow-[0_0_15px_rgba(250,250,250,0.3)]">
             <PlusCircle className="w-4 h-4" /> Receita
           </button>
         </div>
       </header>
 
-      {/* Hero Card dimensionado corretamente */}
-      <section className="glass-card rounded-3xl p-6 md:p-8 lg:p-10 relative overflow-hidden">
-        <div className="absolute top-0 right-0 opacity-10 pointer-events-none translate-x-1/4 -translate-y-1/4">
-           <Wallet className="w-64 h-64 md:w-96 md:h-96" />
+      <section className="glass-card rounded-[2rem] p-6 md:p-8 relative overflow-hidden shadow-2xl">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent opacity-10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-semibold text-zinc-400">Sobra real do mês</span>
+          <span className="bg-positive/10 border border-positive/20 text-positive px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">No Azul</span>
         </div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
-            <span className="text-sm font-semibold text-zinc-400">Sobra real do mês</span>
-            <span className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-sm">
-              No Azul
-            </span>
-          </div>
-          
-          {/* Fontes reduzidas em telas pequenas para não quebrar o card */}
-          <h2 className="text-5xl md:text-7xl font-bold tracking-tighter text-white mb-3">R$ 0,00</h2>
-          <p className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" /> Previsão: <span className="text-white font-bold">R$ 0,00</span>
-          </p>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-white/10 pt-6 mt-8 lg:w-2/3">
-            <div className="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                <ArrowDownLeft className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Entradas</span>
-                <p className="text-lg font-bold text-white leading-tight">R$ 0,00</p>
-              </div>
+        <h2 className="text-5xl md:text-7xl font-bold tracking-tighter text-white">R$ 2.450,00</h2>
+        <p className="text-xs font-medium text-zinc-400 mt-2 flex items-center gap-1.5">
+          <TrendingUp className="w-3.5 h-3.5 text-positive" /> Previsão de fechamento: R$ 3.100,00
+        </p>
+        <div className="grid grid-cols-2 gap-4 border-t border-border/50 pt-6 mt-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-positive/10 flex items-center justify-center text-positive shrink-0"><ArrowDownLeft className="w-5 h-5" /></div>
+            <div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Entradas</span>
+              <p className="text-lg md:text-xl font-bold text-white leading-tight">R$ 5.200,00</p>
             </div>
-            <div className="flex items-center gap-4 bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
-                <ArrowUpRight className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Saídas</span>
-                <p className="text-lg font-bold text-white leading-tight">R$ 0,00</p>
-              </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive shrink-0"><ArrowUpRight className="w-5 h-5" /></div>
+            <div>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Saídas (Real)</span>
+              <p className="text-lg md:text-xl font-bold text-white leading-tight">R$ 2.750,00</p>
             </div>
           </div>
         </div>
       </section>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="glass-card rounded-3xl p-6 min-h-[200px] flex flex-col items-center justify-center text-zinc-500 font-medium">
-          <span className="mb-2 text-2xl">💳</span>
-          Módulo de Cartões em breve...
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="glass-card rounded-3xl p-6 relative">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-bold text-sm uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                <CalendarClock className="w-4 h-4" /> Próximas Faturas
+              </h3>
+            </div>
+            <span className="text-xs font-medium text-accent cursor-pointer">Detalhes</span>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-card border border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center"><div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div></div>
+                <div>
+                  <p className="font-bold text-sm">Nubank</p>
+                  <p className="text-[10px] text-zinc-500">Vence em 05/Jul</p>
+                </div>
+              </div>
+              <span className="font-mono font-bold">R$ 1.200,00</span>
+            </div>
+          </div>
         </section>
-        <section className="glass-card rounded-3xl p-6 min-h-[200px] flex flex-col items-center justify-center text-zinc-500 font-medium">
-          <span className="mb-2 text-2xl">👥</span>
-          Módulo de Rateios em breve...
+
+        <section className="glass-card rounded-3xl p-6">
+           <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-sm uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" /> Resumo de Caixa
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Contas Correntes</span>
+              <span className="font-mono font-bold">R$ 3.850,00</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">A receber (Rateios)</span>
+              <span className="font-mono font-bold text-warning">R$ 680,00</span>
+            </div>
+            <div className="border-t border-border pt-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Saldo Disponível</span>
+              <span className="font-mono font-bold text-lg text-primary">R$ 4.530,00</span>
+            </div>
+          </div>
         </section>
       </div>
     </div>

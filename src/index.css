@@ -10,17 +10,24 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #09090b;
+    background-color: theme('colors.background');
     color: #fafafa;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    overflow: hidden; /* Trava o scroll global, apenas o miolo vai rolar */
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-zinc-900/40 backdrop-blur-xl border border-white/5;
+    background: rgba(24, 24, 27, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid theme('colors.border');
   }
-  .hide-scrollbar::-webkit-scrollbar { display: none; }
-  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

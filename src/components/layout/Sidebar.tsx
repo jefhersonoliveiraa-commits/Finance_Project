@@ -2,42 +2,37 @@ import { LayoutDashboard, ArrowLeftRight, Users, Target, CreditCard, Layers } fr
 
 export function Sidebar() {
   return (
-    <aside className="hidden md:flex flex-col w-64 lg:w-72 border-r border-white/10 bg-[#09090b] shrink-0 h-full">
-      <div className="p-6 flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-          <Layers className="w-6 h-6 text-white" />
+    <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card p-4 h-full shrink-0">
+      <div className="flex items-center gap-3 mb-10 px-2 mt-2">
+        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-white/10">
+          <Layers className="w-5 h-5 text-primary_fg" />
         </div>
-        <span className="font-bold text-2xl tracking-tight text-white">Nexo</span>
+        <span className="font-bold text-xl tracking-tight">Finanças</span>
       </div>
       
-      <div className="flex-1 overflow-y-auto px-4 space-y-8 hide-scrollbar">
-        <div>
-          <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 px-3 mb-2 block">Principal</span>
-          <nav className="flex flex-col gap-1">
-            <a href="/" className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/10 text-white font-medium border border-white/5">
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all">
-              <ArrowLeftRight className="w-4 h-4" /> Lançamentos
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all">
-              <Users className="w-4 h-4" /> Acertos & Rateios
-            </a>
-          </nav>
-        </div>
+      <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-3 px-3">Principal</span>
+      <nav className="flex flex-col gap-1 mb-8">
+        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-border text-white font-medium w-full text-left">
+          <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
+        </button>
+        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
+          <ArrowLeftRight className="w-4 h-4" /> Lançamentos
+        </button>
+        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
+          <Users className="w-4 h-4" /> Acertos & Rateios
+          <span className="ml-auto bg-warning/20 text-warning text-[10px] font-bold px-1.5 py-0.5 rounded-md">3</span>
+        </button>
+      </nav>
 
-        <div>
-          <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 px-3 mb-2 block">Gestão</span>
-          <nav className="flex flex-col gap-1">
-            <a href="#" className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all">
-              <Target className="w-4 h-4" /> Metas
-            </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-all">
-              <CreditCard className="w-4 h-4" /> Cartões de Crédito
-            </a>
-          </nav>
-        </div>
-      </div>
+      <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-3 px-3">Gestão</span>
+      <nav className="flex flex-col gap-1">
+        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
+          <Target className="w-4 h-4" /> Metas
+        </button>
+        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
+          <CreditCard className="w-4 h-4" /> Cartões
+        </button>
+      </nav>
     </aside>
   )
 }
