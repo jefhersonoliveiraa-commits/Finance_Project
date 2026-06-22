@@ -1,32 +1,46 @@
-import { LayoutDashboard, ArrowLeftRight, Users, Target, Plus } from 'lucide-react'
+import { LayoutDashboard, ReceiptText, CreditCard, Target, Settings } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { View } from '@/lib/types'
 
-export function BottomNav() {
+interface BottomNavProps {
+  current: View
+  onChange: (view: View) => void
+}
+
+const items: { view: View; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { view: 'dashboard', label: 'Início', Icon: LayoutDashboard },
+  { view: 'transactions', label: 'Lançamentos', Icon: ReceiptText },
+  { view: 'credit-card', label: 'Cartão', Icon: CreditCard },
+  { view: 'budget', label: 'Orçamento', Icon: Target },
+  { view: 'settings', label: 'Config', Icon: Settings },
+]
+
+export function BottomNav({ current, onChange }: BottomNavProps) {
   return (
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
-      <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex justify-center">
-        <button className="w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(250,250,250,0.25)] active:scale-95 transition-transform">
-          <Plus className="w-6 h-6" />
-        </button>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex h-16 items-center">
+        {items.map(({ view, label, Icon }) => {
+          const active = current === view
+          return (
+            <button
+              key={view}
+              onClick={() => onChange(view)}
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <Icon
+                className={cn(
+                  'h-5 w-5 transition-transform',
+                  active && 'scale-110',
+                )}
+              />
+              <span>{label}</span>
+            </button>
+          )
+        })}
       </div>
-      
-      <nav className="glass-card border-t border-border flex justify-between px-6 py-3 pb-safe">
-        <a href="/" className="flex flex-col items-center gap-1.5 text-white w-12">
-          <LayoutDashboard className="w-5 h-5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Início</span>
-        </a>
-        <a href="#" className="flex flex-col items-center gap-1.5 text-muted-foreground hover:text-white transition w-12 mr-8">
-          <ArrowLeftRight className="w-5 h-5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Trans.</span>
-        </a>
-        <a href="#" className="flex flex-col items-center gap-1.5 text-muted-foreground hover:text-white transition w-12 ml-8">
-          <Users className="w-5 h-5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Rateio</span>
-        </a>
-        <a href="#" className="flex flex-col items-center gap-1.5 text-muted-foreground hover:text-white transition w-12">
-          <Target className="w-5 h-5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Metas</span>
-        </a>
-      </nav>
-    </div>
+    </nav>
   )
 }

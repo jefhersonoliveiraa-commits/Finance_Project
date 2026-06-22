@@ -1,3 +1,25 @@
+#!/usr/bin/env bash
+# apply-dashboard-fix.sh
+# Corrige o layout do herói no Dashboard (valores Entrou/Gasto seu separados).
+# Rode na RAIZ do repositório no seu Codespace.
+set -euo pipefail
+
+if [ ! -f package.json ] || [ ! -d src ]; then
+  echo "❌ Rode na raiz do repositório (onde está package.json)."
+  exit 1
+fi
+if [ -n "$(git status --porcelain)" ]; then
+  echo "❌ Há mudanças não commitadas. Faça commit ou 'git stash' antes."
+  exit 1
+fi
+
+echo "▶ Atualizando main..."
+git fetch origin main
+git checkout main
+git pull origin main
+
+echo "▶ Gravando Dashboard.tsx corrigido..."
+cat > src/pages/Dashboard.tsx <<'TSX_EOF'
 import { useState } from 'react'
 import {
   Plus,
@@ -7,7 +29,6 @@ import {
   Users,
   Wallet,
   Repeat,
-  Target,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,13 +47,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
-import { PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import type { ChartConfig } from '@/components/ui/chart'
 import { METHOD_LABELS } from '@/lib/types'
-import type { CategoryStat, BankAccount, Transaction, PersonReceivable, BudgetLimit } from '@/lib/types'
+import type { CategoryStat, BankAccount, Transaction, PersonReceivable } from '@/lib/types'
 
 export function Dashboard() {
-  const { transactions, incomes, loading, stats, bankAccounts, futureBills, budgetLimits, navigate } = useFinance()
+  const { transactions, incomes, loading, stats, bankAccounts, futureBills } = useFinance()
   const [txOpen, setTxOpen] = useState(false)
   const [incOpen, setIncOpen] = useState(false)
   const [txfOpen, setTxfOpen] = useState(false)
@@ -57,21 +78,15 @@ export function Dashboard() {
   const pendingPeople = aReceberByPerson.filter(p => p.totalPending > 0)
   const positive = sobraReal >= 0
 
-  // Budget summary
-  const limitMap = new Map(budgetLimits.map((b: BudgetLimit) => [b.category_id, b.monthly_limit]))
-  const budgetCategories = byCategory.filter((c: CategoryStat) => c.category && limitMap.has(c.category.id))
-  const totalBudgeted = budgetCategories.reduce((s: number, c: CategoryStat) => s + limitMap.get(c.category!.id)!, 0)
-  const totalSpentOnBudgeted = budgetCategories.reduce((s: number, c: CategoryStat) => s + c.myAmount, 0)
-  const budgetOverCount = budgetCategories.filter((c: CategoryStat) => c.myAmount > limitMap.get(c.category!.id)!).length
-
   const chartData = byCategory.slice(0, 6).map((c: CategoryStat) => ({
-    name: c.label,
-    value: c.myAmount,
-    color: c.color,
+    name: c.label.length > 12 ? c.label.slice(0, 10) + '…' : c.label,
+    bruto: c.amount,
+    meu: c.myAmount,
   }))
 
   const chartConfig: ChartConfig = {
-    value: { label: 'Gasto' },
+    bruto: { label: 'Bruto', color: 'var(--chart-2)' },
+    meu: { label: 'Meu gasto', color: 'var(--chart-1)' },
   }
 
   return (
@@ -150,63 +165,6 @@ export function Dashboard() {
           <SmallMetric label="A receber" value={aReceberPending} highlight={aReceberPending > 0} />
           <SmallMetric label="Próx. faturas" value={futureCommitted} />
         </div>
-      )}
-
-      {/* Budget quick summary */}
-      {!loading && budgetLimits.length > 0 && (
-        <button
-          type="button"
-          className="w-full text-left rounded-2xl border border-border bg-card p-4 active:opacity-80 transition-opacity"
-          onClick={() => navigate('budget')}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Target className="h-4 w-4" />
-              Orçamento do Mês
-            </span>
-            {budgetOverCount > 0 && (
-              <span className="rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[11px] font-semibold">
-                {budgetOverCount} estouro{budgetOverCount !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-          {budgetCategories.slice(0, 3).map((c: CategoryStat) => {
-            const limit = limitMap.get(c.category!.id)!
-            const pct = Math.min((c.myAmount / limit) * 100, 100)
-            const over = c.myAmount > limit
-            const warn = !over && c.myAmount / limit >= 0.8
-            return (
-              <div key={c.category!.id} className="flex items-center gap-2 mb-1.5">
-                <span className="text-xs text-muted-foreground w-24 truncate">{c.category!.name}</span>
-                <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className={cn(
-                      'h-full rounded-full',
-                      over ? 'bg-destructive' : warn ? 'bg-amber-500' : 'bg-emerald-500',
-                    )}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <span className="text-xs tabular-nums font-mono text-muted-foreground w-16 text-right">
-                  {formatBRL(c.myAmount)}
-                </span>
-              </div>
-            )
-          })}
-          {budgetCategories.length > 3 && (
-            <p className="text-[11px] text-muted-foreground mt-2">
-              +{budgetCategories.length - 3} categoria{budgetCategories.length - 3 !== 1 ? 's' : ''} mais — ver tudo
-            </p>
-          )}
-          {budgetCategories.length <= 3 && (
-            <div className="flex justify-between border-t border-border pt-2 mt-1">
-              <span className="text-xs text-muted-foreground">Total orçado</span>
-              <span className="font-mono text-xs font-semibold tabular-nums">
-                {formatBRL(totalSpentOnBudgeted)} / {formatBRL(totalBudgeted)}
-              </span>
-            </div>
-          )}
-        </button>
       )}
 
       {/* Account balances */}
@@ -333,15 +291,16 @@ export function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-2 pb-4">
             {subscriptions.slice(0, 4).map((sub, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 text-sm">
-                <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div key={i} className="flex items-center justify-between text-sm">
+                <div className="flex min-w-0 items-center gap-2">
                   {sub.card && (
                     <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: sub.card.color }} />
                   )}
                   <span className="truncate">{sub.description}</span>
                 </div>
                 <div className="shrink-0 text-right">
-                  <span className="font-mono font-medium tabular-nums text-xs">{formatBRL(sub.monthlyAmount)}/mês</span>
+                  <span className="font-mono font-medium tabular-nums">{formatBRL(sub.monthlyAmount)}/mês</span>
+                  <span className="ml-1 text-xs text-muted-foreground">({formatBRL(sub.annualAmount)}/ano)</span>
                 </div>
               </div>
             ))}
@@ -353,7 +312,7 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Category donut chart - Pierre style */}
+      {/* Category chart */}
       {!loading && chartData.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4">
@@ -362,50 +321,20 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
-            <div className="flex items-center gap-4">
-              <div className="relative h-[140px] w-[140px] shrink-0">
-                <ChartContainer config={chartConfig} className="h-[140px] w-[140px]">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={42}
-                      outerRadius={65}
-                      paddingAngle={2}
-                      dataKey="value"
-                      strokeWidth={0}
-                    >
-                      {chartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => formatBRL(Number(v))} />} />
-                  </PieChart>
-                </ChartContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[10px] text-tertiary">Total</span>
-                  <span className="font-mono text-sm font-bold tabular-nums">{formatBRL(gastoRealMeu)}</span>
-                </div>
-              </div>
-              <div className="flex-1 space-y-1.5 min-w-0">
-                {byCategory.slice(0, 5).map((c: CategoryStat) => (
-                  <div key={c.label} className="flex items-center gap-2">
-                    <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                    <span className="flex-1 truncate text-xs text-muted-foreground">{c.label}</span>
-                    <span className="font-mono text-xs font-medium tabular-nums">{formatBRL(c.myAmount)}</span>
-                  </div>
-                ))}
-                {byCategory.length > 5 && (
-                  <p className="text-[10px] text-tertiary pl-4">+{byCategory.length - 5} mais</p>
-                )}
-              </div>
-            </div>
+            <ChartContainer config={chartConfig} className="h-[170px] w-full">
+              <BarChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: -20 }} barGap={2}>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <ChartTooltip content={<ChartTooltipContent formatter={(v) => formatBRL(Number(v))} />} />
+                <Bar dataKey="bruto" fill="var(--color-bruto)" radius={[4, 4, 0, 0]} opacity={0.35} />
+                <Bar dataKey="meu" fill="var(--color-meu)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       )}
 
-      {/* Method breakdown - Pierre style */}
+      {/* Method breakdown */}
       {!loading && byMethod.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4">
@@ -414,26 +343,24 @@ export function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pb-4">
-            {byMethod.map(m => {
-              const pct = gastoRealMeu > 0 ? (m.myAmount / gastoRealMeu) * 100 : 0
-              return (
-                <div key={m.method}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">{m.label}</span>
-                    <span className="font-mono font-medium tabular-nums">
+            {byMethod.map(m => (
+              <div key={m.method} className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="truncate text-muted-foreground">{m.label}</span>
+                    <span className="ml-2 font-mono font-medium tabular-nums">
                       {formatBRL(m.myAmount)}
+                      {m.amount !== m.myAmount && (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">/ {formatBRL(m.amount)} bruto</span>
+                      )}
                     </span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${gastoRealMeu > 0 ? (m.myAmount / gastoRealMeu) * 100 : 0}%` }} />
                   </div>
-                  <p className="text-[10px] text-tertiary mt-0.5 text-right">{pct.toFixed(0)}%</p>
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
@@ -529,9 +456,9 @@ function SmallMetric({
   highlight?: boolean
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-2.5 text-center min-w-0">
+    <div className="rounded-xl border border-border bg-card p-2.5 text-center">
       <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn('mt-0.5 font-mono text-sm font-bold tabular-nums truncate', highlight && 'text-amber-400')}>
+      <p className={cn('mt-0.5 font-mono text-sm font-bold tabular-nums', highlight && 'text-amber-400')}>
         {formatBRL(value)}
       </p>
     </div>
@@ -575,3 +502,15 @@ function RecentRow({ tx }: { tx: Transaction }) {
     </div>
   )
 }
+TSX_EOF
+
+echo "▶ Verificando o build..."
+npm run build
+
+echo "▶ Commit e push..."
+git add -A
+git commit -m "Ajuste do dashboard: herói com Entrou/Gasto seu separados e pill de status"
+git push origin main
+
+echo ""
+echo "✅ Dashboard ajustado e enviado para main."
