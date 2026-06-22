@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# fix-tailwind-v4.sh
+# Corrige a sintaxe de cores para o Tailwind v4
+set -euo pipefail
+
+echo "▶ Corrigindo index.css para Tailwind v4..."
+cat > src/index.css <<'EOF'
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'Plus Jakarta Sans', monospace;
+  
+  /* Definindo cores customizadas para o v4 */
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #18181b;
+  --color-border: #27272a;
+  --color-accent: #3b82f6;
+  --color-positive: #10b981;
+  --color-destructive: #ef4444;
+  --color-warning: #f59e0b;
+  --color-muted: #27272a;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    background: rgba(24, 24, 27, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--color-border);
+  }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+EOF
+
+echo "✅ Arquivo CSS corrigido para o Tailwind v4!"
