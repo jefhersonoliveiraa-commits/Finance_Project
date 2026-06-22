@@ -1,6 +1,25 @@
-import { LayoutDashboard, ArrowLeftRight, Users, Target, Plus } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Users, Plus, Menu } from 'lucide-react'
+import type { View } from '@/lib/types'
 
-export function BottomNav() {
+interface BottomNavProps {
+  currentView: View;
+  onNavigate: (view: View) => void;
+}
+
+export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
+  const navItem = (id: View, icon: React.ReactNode, label: string) => {
+    const isActive = currentView === id;
+    return (
+      <button 
+        onClick={() => onNavigate(id)} 
+        className={`flex flex-col items-center gap-1.5 transition w-12 ${isActive ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
+      >
+        {icon}
+        <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
       <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex justify-center">
@@ -10,26 +29,18 @@ export function BottomNav() {
       </div>
       
       <nav className="glass-card border-t border-border flex justify-between px-6 py-3 pb-safe">
-        <button className="flex flex-col items-center gap-1.5 text-white w-12">
-          <LayoutDashboard className="w-5 h-5 text-primary" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Início</span>
-        </button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition w-12 mr-8">
-          <ArrowLeftRight className="w-5 h-5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Trans.</span>
-        </button>
+        {navItem('dashboard', <LayoutDashboard className={`w-5 h-5 ${currentView === 'dashboard' ? 'text-primary' : ''}`} />, 'Início')}
         
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition w-12 ml-8">
-          <div className="relative">
-            <Users className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1.5 w-3 h-3 bg-warning rounded-full border-[2px] border-card"></span>
-          </div>
-          <span className="text-[9px] font-bold uppercase tracking-wider">Rateio</span>
-        </button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition w-12">
-          <Target className="w-5 h-5" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Metas</span>
-        </button>
+        <div className="mr-8">
+          {navItem('transactions', <ArrowLeftRight className="w-5 h-5" />, 'Trans.')}
+        </div>
+        
+        <div className="ml-8">
+          {navItem('receivables', <Users className="w-5 h-5" />, 'Rateio')}
+        </div>
+        
+        {/* Usamos 'settings' ou um modal de menu geral para o botão da direita no mobile */}
+        {navItem('settings', <Menu className="w-5 h-5" />, 'Menu')}
       </nav>
     </div>
   )

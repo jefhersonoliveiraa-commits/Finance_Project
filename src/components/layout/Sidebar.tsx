@@ -1,6 +1,25 @@
-import { LayoutDashboard, ArrowLeftRight, Users, Target, CreditCard, Layers } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Users, CreditCard, Layers, Settings, PieChart } from 'lucide-react'
+import type { View } from '@/lib/types'
 
-export function Sidebar() {
+interface SidebarProps {
+  currentView: View;
+  onNavigate: (view: View) => void;
+}
+
+export function Sidebar({ currentView, onNavigate }: SidebarProps) {
+  const navItem = (id: View, icon: React.ReactNode, label: string) => {
+    const isActive = currentView === id;
+    return (
+      <button 
+        onClick={() => onNavigate(id)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-left font-medium ${isActive ? 'bg-border text-white' : 'text-zinc-400 hover:text-white hover:bg-muted/50'}`}
+      >
+        {icon}
+        {label}
+      </button>
+    );
+  };
+
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card p-4 h-full shrink-0">
       <div className="flex items-center gap-3 mb-10 px-2 mt-2">
@@ -12,27 +31,23 @@ export function Sidebar() {
       
       <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-3 px-3">Principal</span>
       <nav className="flex flex-col gap-1 mb-8">
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-border text-white font-medium w-full text-left">
-          <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
-        </button>
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
-          <ArrowLeftRight className="w-4 h-4" /> Lançamentos
-        </button>
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
-          <Users className="w-4 h-4" /> Acertos & Rateios
-          <span className="ml-auto bg-warning/20 text-warning text-[10px] font-bold px-1.5 py-0.5 rounded-md">3</span>
-        </button>
+        {navItem('dashboard', <LayoutDashboard className={`w-4 h-4 ${currentView === 'dashboard' ? 'text-primary' : ''}`} />, 'Dashboard')}
+        {navItem('transactions', <ArrowLeftRight className="w-4 h-4" />, 'Lançamentos')}
+        {navItem('receivables', <Users className="w-4 h-4" />, 'Acertos & Rateios')}
       </nav>
 
       <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-3 px-3">Gestão</span>
-      <nav className="flex flex-col gap-1">
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
-          <Target className="w-4 h-4" /> Metas
-        </button>
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-muted/50 transition-colors w-full text-left font-medium">
-          <CreditCard className="w-4 h-4" /> Cartões
-        </button>
+      <nav className="flex flex-col gap-1 mb-8">
+        {navItem('budget', <PieChart className="w-4 h-4" />, 'Orçamentos & Limites')}
+        {navItem('credit-card', <CreditCard className="w-4 h-4" />, 'Cartões')}
       </nav>
+
+      {/* Empurra o botão de configurações para o final da tela */}
+      <div className="mt-auto">
+        <nav className="flex flex-col gap-1">
+          {navItem('settings', <Settings className="w-4 h-4" />, 'Configurações')}
+        </nav>
+      </div>
     </aside>
   )
 }
