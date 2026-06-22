@@ -8,6 +8,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { Transactions } from '@/pages/Transactions'
 import { CreditCardPage } from '@/pages/CreditCard'
 import { Receivables } from '@/pages/Receivables'
+import { Goals } from '@/pages/Goals'
 import { SettingsPage } from '@/pages/Settings'
 import { Import } from '@/pages/Import'
 import { BudgetPage } from '@/pages/Budget'
@@ -41,7 +42,8 @@ export default function App() {
         {view === 'dashboard' && <Dashboard />}
         {view === 'transactions' && <Transactions />}
         {view === 'credit-card' && <CreditCardPage />}
-        {view === 'receivables' && <Receivables />}
+        {view === 'receivables' {view === 'receivables' && <Receivables />}{view === 'receivables' && <Receivables />} <Receivables />}
+        {view === 'goals' {view === 'receivables' && <Receivables />}{view === 'receivables' && <Receivables />} <Goals />}
         {view === 'settings' && <SettingsPage />}
         {view === 'import' && <Import />}
         {view === 'budget' && <BudgetPage />}
