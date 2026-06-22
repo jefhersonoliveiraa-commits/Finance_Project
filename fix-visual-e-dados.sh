@@ -1,3 +1,30 @@
+#!/usr/bin/env bash
+# fix-visual-e-dados.sh
+# Restaura sua paleta de cores original e limpa a renderização do Dashboard.
+set -euo pipefail
+
+echo "▶ 1. Restaurando Paleta de Cores Oficial..."
+cat > src/index.css <<'EOF'
+@import "tailwindcss";
+
+@theme {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #18181b;
+  --color-border: #27272a;
+  /* Paleta original Shadcn/Finance */
+  --color-primary: #ffffff;
+  --color-primary-foreground: #09090b;
+  --color-accent: #3b82f6;
+  --color-positive: #10b981;
+  --color-destructive: #ef4444;
+  --color-warning: #f59e0b;
+  --color-muted: #27272a;
+}
+EOF
+
+echo "▶ 2. Corrigindo renderização do Dashboard (sem valores fantasmas)..."
+cat > src/pages/Dashboard.tsx <<'EOF'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ArrowRightLeft, MinusCircle, PlusCircle, TrendingUp, Wallet, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
@@ -51,3 +78,4 @@ export function Dashboard() {
     </div>
   )
 }
+EOF
