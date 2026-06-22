@@ -4,3 +4,10 @@ export interface Category { id: string; name: string; type: 'income' | 'expense'
 export interface Transaction { id: string; description: string; amount: number; my_amount: number; date: string; type: 'income' | 'expense' | 'transfer'; status: string; person_id?: string; category?: Category; }
 export interface Person { id: string; name: string; avatar_color: string; }
 export interface Goal { id: string; title: string; target_amount: number; current_amount: number; deadline: string; icon: string; }
+
+export const METHOD_LABELS = {
+  account: 'Conta Corrente',
+  credit_card: 'Cartão de Crédito',
+  cash: 'Dinheiro',
+  pix: 'PIX'
+};
