@@ -1,186 +1,50 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "@fontsource/geist-sans/400.css";
-@import "@fontsource/geist-sans/500.css";
-@import "@fontsource/geist-sans/600.css";
-@import "@fontsource/geist-sans/700.css";
-@import "@fontsource/geist-mono/400.css";
-@import "@fontsource/geist-mono/500.css";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --font-sans: "Geist Sans", sans-serif;
-  --font-mono: "Geist Mono", monospace;
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 3px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 6px);
-  --radius-2xl: calc(var(--radius) + 10px);
-  --radius-3xl: calc(var(--radius) + 16px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-tertiary: var(--tertiary);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-positive: var(--positive);
-  --color-positive-foreground: var(--positive-foreground);
-  --color-icon-bg: var(--icon-bg);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
-
-/*
-  ============================================================
-  THEME CONFIGURATION — Dark default, violet accent, frosted glass
-  ============================================================
-
-  Palette:
-    - Base background:   #14121C
-    - Card surface:     rgba(255,255,255,0.05) with rgba(255,255,255,0.10) border (frosted glass)
-    - Primary violet:    #A78BFA (text on it: #2E1065)
-    - Primary strong:    #7C3AED (hover/active)
-    - Positive/emerald:  #34D399
-    - Negative/red:      #F87171
-    - Foreground:         #FAFAFA (primary), #A5A0B5 (secondary), #6E6A7C (tertiary)
-    - Category icon bg:  rgba(167,139,250,0.18)
-*/
-
-:root {
-  --radius: 1.25rem;
-  /* Dark as default theme — identical to .dark below */
-  --background: #14121C;
-  --foreground: #FAFAFA;
-  --card: rgba(255, 255, 255, 0.05);
-  --card-foreground: #FAFAFA;
-  --popover: #1C1924;
-  --popover-foreground: #FAFAFA;
-  --primary: #A78BFA;
-  --primary-foreground: #2E1065;
-  --primary-strong: #7C3AED;
-  --secondary: rgba(255, 255, 255, 0.08);
-  --secondary-foreground: #FAFAFA;
-  --muted: rgba(255, 255, 255, 0.06);
-  --muted-foreground: #A5A0B5;
-  --tertiary: #6E6A7C;
-  --accent: rgba(167, 139, 250, 0.16);
-  --accent-foreground: #C4B5FD;
-  --destructive: #F87171;
-  --destructive-foreground: #1A0A0A;
-  --positive: #34D399;
-  --positive-foreground: #03281C;
-  --icon-bg: rgba(167, 139, 250, 0.18);
-  --border: rgba(255, 255, 255, 0.10);
-  --input: rgba(255, 255, 255, 0.10);
-  --ring: #A78BFA;
-  --chart-1: #A78BFA;
-  --chart-2: #34D399;
-  --chart-3: #F87171;
-  --chart-4: #60A5FA;
-  --chart-5: #FBBF24;
-  --sidebar: #1C1924;
-  --sidebar-foreground: #FAFAFA;
-  --sidebar-primary: #A78BFA;
-  --sidebar-primary-foreground: #2E1065;
-  --sidebar-accent: rgba(167, 139, 250, 0.16);
-  --sidebar-accent-foreground: #C4B5FD;
-  --sidebar-border: rgba(255, 255, 255, 0.10);
-  --sidebar-ring: #A78BFA;
-}
-
-.dark {
-  --background: #14121C;
-  --foreground: #FAFAFA;
-  --card: rgba(255, 255, 255, 0.05);
-  --card-foreground: #FAFAFA;
-  --popover: #1C1924;
-  --popover-foreground: #FAFAFA;
-  --primary: #A78BFA;
-  --primary-foreground: #2E1065;
-  --primary-strong: #7C3AED;
-  --secondary: rgba(255, 255, 255, 0.08);
-  --secondary-foreground: #FAFAFA;
-  --muted: rgba(255, 255, 255, 0.06);
-  --muted-foreground: #A5A0B5;
-  --tertiary: #6E6A7C;
-  --accent: rgba(167, 139, 250, 0.16);
-  --accent-foreground: #C4B5FD;
-  --destructive: #F87171;
-  --destructive-foreground: #1A0A0A;
-  --positive: #34D399;
-  --positive-foreground: #03281C;
-  --icon-bg: rgba(167, 139, 250, 0.18);
-  --border: rgba(255, 255, 255, 0.10);
-  --input: rgba(255, 255, 255, 0.10);
-  --ring: #A78BFA;
-  --chart-1: #A78BFA;
-  --chart-2: #34D399;
-  --chart-3: #F87171;
-  --chart-4: #60A5FA;
-  --chart-5: #FBBF24;
-  --sidebar: #1C1924;
-  --sidebar-foreground: #FAFAFA;
-  --sidebar-primary: #A78BFA;
-  --sidebar-primary-foreground: #2E1065;
-  --sidebar-accent: rgba(167, 139, 250, 0.16);
-  --sidebar-accent-foreground: #C4B5FD;
-  --sidebar-border: rgba(255, 255, 255, 0.10);
-  --sidebar-ring: #A78BFA;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
-  * {
-    @apply border-border;
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 217.2 91.2% 59.8%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --positive: 142.1 76.2% 36.3%;
+    --warning: 38 92% 50%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --radius: 1rem;
   }
-  html, body {
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+  * { @apply border-border; }
   body {
-    @apply bg-background text-foreground;
-    background-color: var(--background);
-    overflow-x: hidden;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', sans-serif;
   }
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-zinc-900/40 backdrop-blur-2xl border border-white/5 shadow-xl;
   }
-  .font-mono {
-    font-family: var(--font-mono);
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  /* Prevent iOS zoom on focus for inputs smaller than 16px */
-  @media screen and (max-width: 768px) {
-    input, select, textarea {
-      font-size: 16px !important;
-    }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
