@@ -5,46 +5,22 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 217.2 91.2% 59.8%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --positive: 142.1 76.2% 36.3%;
-    --warning: 38 92% 50%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --radius: 1rem;
-  }
-  * { @apply border-border; }
-  body {
-    @apply bg-background text-foreground antialiased;
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #09090b;
+    color: #fafafa;
     font-family: 'Plus Jakarta Sans', sans-serif;
+    overflow: hidden; /* Trava o scroll global, apenas o miolo vai rolar */
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-zinc-900/40 backdrop-blur-2xl border border-white/5 shadow-xl;
+    @apply bg-zinc-900/40 backdrop-blur-xl border border-white/5;
   }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
