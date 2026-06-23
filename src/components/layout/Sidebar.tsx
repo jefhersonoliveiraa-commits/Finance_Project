@@ -1,52 +1,89 @@
-import { LayoutDashboard, ArrowLeftRight, Users, CreditCard, Layers, Settings, PieChart } from 'lucide-react'
+import {
+  LayoutDashboard, ArrowLeftRight, Users, CreditCard,
+  Layers, Settings, PieChart, Target,
+} from 'lucide-react'
+import { useFinance } from '@/context/FinanceContext'
+import { cn } from '@/lib/utils'
 import type { View } from '@/lib/types'
 
 interface SidebarProps {
-  currentView: View;
-  onNavigate: (view: View) => void;
+  currentView: View
+  onNavigate: (view: View) => void
 }
 
 export function Sidebar({ currentView, onNavigate }: SidebarProps) {
-  const navItem = (id: View, icon: React.ReactNode, label: string) => {
-    const isActive = currentView === id;
+  const { stats } = useFinance()
+  const pendingRateios = stats?.aReceberPending ?? 0
+
+  const navItem = (
+    id: View,
+    icon: React.ReactNode,
+    label: string,
+    badge?: React.ReactNode,
+  ) => {
+    const isActive = currentView === id
     return (
-      <button 
+      <button
+        key={id}
         onClick={() => onNavigate(id)}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full text-left font-medium ${isActive ? 'bg-border text-white' : 'text-zinc-400 hover:text-white hover:bg-muted/50'}`}
+        className={cn(
+          'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all w-full text-left text-sm font-medium',
+          isActive
+            ? 'bg-primary/10 text-primary border border-primary/20'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/40',
+        )}
       >
-        {icon}
-        {label}
+        <span className={cn(
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+          isActive ? 'bg-primary/15 text-primary' : 'text-muted-foreground',
+        )}>
+          {icon}
+        </span>
+        <span className="flex-1 truncate">{label}</span>
+        {badge}
       </button>
-    );
-  };
+    )
+  }
 
   return (
-    <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card p-4 h-full shrink-0">
-      <div className="flex items-center gap-3 mb-10 px-2 mt-2">
-        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-white/10">
-          <Layers className="w-5 h-5 text-primary-foreground" />
+    <aside className="hidden md:flex flex-col w-60 border-r border-border/60 bg-card/50 backdrop-blur-xl p-4 h-full shrink-0">
+      {/* Logo */}
+      <div className="flex items-center gap-3 mb-8 px-2 mt-1">
+        <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shadow-lg">
+          <Layers className="w-4 h-4 text-primary" />
         </div>
-        <span className="font-bold text-xl tracking-tight">Finanças</span>
+        <span className="font-bold text-base tracking-tight">Finanças</span>
       </div>
-      
-      <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-3 px-3">Principal</span>
-      <nav className="flex flex-col gap-1 mb-8">
-        {navItem('dashboard', <LayoutDashboard className={`w-4 h-4 ${currentView === 'dashboard' ? 'text-primary' : ''}`} />, 'Dashboard')}
+
+      {/* Principal */}
+      <p className="text-[10px] uppercase font-bold tracking-widest text-tertiary mb-2 px-2">Principal</p>
+      <nav className="flex flex-col gap-0.5 mb-6">
+        {navItem('dashboard', <LayoutDashboard className="w-4 h-4" />, 'Dashboard')}
         {navItem('transactions', <ArrowLeftRight className="w-4 h-4" />, 'Lançamentos')}
-        {navItem('receivables', <Users className="w-4 h-4" />, 'Acertos & Rateios')}
+        {navItem(
+          'receivables',
+          <Users className="w-4 h-4" />,
+          'Acertos & Rateios',
+          pendingRateios > 0 && (
+            <span className="ml-auto rounded-md bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold text-warning">
+              {pendingRateios > 99 ? '99+' : pendingRateios}
+            </span>
+          ),
+        )}
       </nav>
 
-      <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-3 px-3">Gestão</span>
-      <nav className="flex flex-col gap-1 mb-8">
-        {navItem('budget', <PieChart className="w-4 h-4" />, 'Orçamentos & Limites')}
-        {navItem('credit-card', <CreditCard className="w-4 h-4" />, 'Cartões')}
+      {/* Gestão */}
+      <p className="text-[10px] uppercase font-bold tracking-widest text-tertiary mb-2 px-2">Gestão</p>
+      <nav className="flex flex-col gap-0.5 mb-6">
+        {navItem('budget',      <PieChart    className="w-4 h-4" />, 'Orçamentos')}
+        {navItem('credit-card', <CreditCard  className="w-4 h-4" />, 'Cartões')}
+        {navItem('goals',       <Target      className="w-4 h-4" />, 'Metas')}
       </nav>
 
-      {/* Empurra o botão de configurações para o final da tela */}
-      <div className="mt-auto">
-        <nav className="flex flex-col gap-1">
-          {navItem('settings', <Settings className="w-4 h-4" />, 'Configurações')}
-        </nav>
+      {/* Footer */}
+      <div className="mt-auto flex flex-col gap-0.5">
+        <div className="mb-2 h-px bg-border/60" />
+        {navItem('settings', <Settings className="w-4 h-4" />, 'Configurações')}
       </div>
     </aside>
   )

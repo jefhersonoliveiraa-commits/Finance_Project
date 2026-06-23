@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import {
-  Plus,
   CreditCard,
-  ArrowRight,
   CalendarDays,
   Users,
   Wallet,
@@ -11,12 +9,8 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MonthSelector } from '@/components/layout/MonthSelector'
-import { TransactionForm } from '@/components/TransactionForm'
-import { IncomeForm } from '@/components/IncomeForm'
-import { TransferForm } from '@/components/TransferForm'
 import { useFinance } from '@/context/FinanceContext'
 import { formatBRL, formatDate } from '@/lib/format'
 import { billingPeriodLabel } from '@/lib/billing'
@@ -34,9 +28,6 @@ import type { CategoryStat, BankAccount, Transaction, PersonReceivable, BudgetLi
 
 export function Dashboard() {
   const { transactions, incomes, loading, stats, bankAccounts, futureBills, budgetLimits, navigate } = useFinance()
-  const [txOpen, setTxOpen] = useState(false)
-  const [incOpen, setIncOpen] = useState(false)
-  const [txfOpen, setTxfOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'mine' | 'overview'>('mine')
 
   const {
@@ -107,20 +98,10 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Finanças</h1>
-          <MonthSelector className="mt-0.5" />
+          <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Visão geral das suas finanças</p>
         </div>
-        <div className="flex gap-2">
-          {bankAccounts.length >= 2 && (
-            <Button size="sm" variant="ghost" onClick={() => setTxfOpen(true)} title="Transferir">
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button size="sm" variant="outline" onClick={() => setIncOpen(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Receita
-          </Button>
-        </div>
+        <MonthSelector />
       </div>
 
       {/* Toggle: Apenas meu / Visão geral */}
@@ -585,17 +566,6 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* FAB */}
-      <button
-        onClick={() => setTxOpen(true)}
-        className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
-
-      <TransactionForm open={txOpen} onOpenChange={setTxOpen} />
-      <IncomeForm open={incOpen} onOpenChange={setIncOpen} />
-      <TransferForm open={txfOpen} onOpenChange={setTxfOpen} />
     </div>
   )
 }

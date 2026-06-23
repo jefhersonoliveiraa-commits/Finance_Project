@@ -1,46 +1,52 @@
-import { LayoutDashboard, ArrowLeftRight, Users, Plus, Menu } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Users, LayoutGrid } from 'lucide-react'
+import { useFinance } from '@/context/FinanceContext'
+import { cn } from '@/lib/utils'
 import type { View } from '@/lib/types'
 
 interface BottomNavProps {
-  currentView: View;
-  onNavigate: (view: View) => void;
+  currentView: View
+  onNavigate: (view: View) => void
 }
 
 export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
-  const navItem = (id: View, icon: React.ReactNode, label: string) => {
-    const isActive = currentView === id;
+  const { stats } = useFinance()
+  const pendingRateios = stats?.aReceberPending ?? 0
+
+  const navItem = (id: View, icon: React.ReactNode, label: string, badge?: boolean) => {
+    const isActive = currentView === id
     return (
-      <button 
-        onClick={() => onNavigate(id)} 
-        className={`flex flex-col items-center gap-1.5 transition w-12 ${isActive ? 'text-white' : 'text-zinc-400 hover:text-white'}`}
+      <button
+        onClick={() => onNavigate(id)}
+        className={cn(
+          'relative flex flex-col items-center gap-1 transition-all w-14',
+          isActive ? 'text-primary' : 'text-muted-foreground',
+        )}
       >
-        {icon}
-        <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+        <span className={cn(
+          'flex h-8 w-8 items-center justify-center rounded-xl transition-all',
+          isActive && 'bg-primary/15',
+        )}>
+          {icon}
+        </span>
+        <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">{label}</span>
+        {badge && (
+          <span className="absolute top-0 right-1.5 h-2 w-2 rounded-full bg-warning border-2 border-background" />
+        )}
       </button>
-    );
-  };
+    )
+  }
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
-      <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex justify-center">
-        <button className="w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(250,250,250,0.25)] active:scale-95 transition-transform">
-          <Plus className="w-6 h-6" />
-        </button>
-      </div>
-      
-      <nav className="glass-card border-t border-border flex justify-between px-6 py-3 pb-safe">
-        {navItem('dashboard', <LayoutDashboard className={`w-5 h-5 ${currentView === 'dashboard' ? 'text-primary' : ''}`} />, 'Início')}
-        
-        <div className="mr-8">
-          {navItem('transactions', <ArrowLeftRight className="w-5 h-5" />, 'Trans.')}
-        </div>
-        
-        <div className="ml-8">
-          {navItem('receivables', <Users className="w-5 h-5" />, 'Rateio')}
-        </div>
-        
-        {/* Usamos 'settings' ou um modal de menu geral para o botão da direita no mobile */}
-        {navItem('settings', <Menu className="w-5 h-5" />, 'Menu')}
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-40">
+      <nav className="glass-card border-t border-border/60 flex items-center justify-around px-2 pt-2 pb-safe" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        {navItem('dashboard',    <LayoutDashboard className="w-5 h-5" />, 'Início')}
+        {navItem('transactions', <ArrowLeftRight  className="w-5 h-5" />, 'Trans.')}
+
+        {/* Espaço pro FAB */}
+        <div className="w-14" />
+
+        {navItem('receivables', <Users      className="w-5 h-5" />, 'Rateio', pendingRateios > 0)}
+        {navItem('settings',    <LayoutGrid className="w-5 h-5" />, 'Menu')}
       </nav>
     </div>
   )

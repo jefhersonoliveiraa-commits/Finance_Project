@@ -731,7 +731,7 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
   const setAccountBalance = async (id: string, balance: number) => {
     await supabase
       .from('bank_accounts')
-      .update({ current_balance: balance, initial_balance: balance })
+      .update({ current_balance: balance })
       .eq('id', id)
     reload()
   }
