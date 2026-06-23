@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback } from 'react'
 import { Upload, FileText, AlertCircle, Check, X, Loader2, ArrowLeft, CreditCard, Building2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -347,7 +347,7 @@ export function Import() {
   const duplicateRows = previewRows.filter(r => r.isDuplicate)
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-6">
+    <div className="flex flex-col gap-5">
       <div className="flex items-center gap-3">
         {step !== 'upload' && step !== 'done' && (
           <Button variant="ghost" size="icon" onClick={handleBack}>
@@ -359,11 +359,11 @@ export function Import() {
 
       {step === 'upload' && (
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Tipo de importação</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+            <div className="border-b border-border/60 px-4 py-3">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Tipo de importação</p>
+            </div>
+            <div className="space-y-3 px-4 pb-4">
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={importMode === 'transactions' ? 'default' : 'outline'}
@@ -403,11 +403,11 @@ export function Import() {
                   </SelectContent>
                 </Select>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardContent className="pt-6">
+          <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+            <div className="p-4">
               <div
                 className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-muted-foreground/25 p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
@@ -433,8 +433,8 @@ export function Import() {
                 className="hidden"
                 onChange={handleFileChange}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {file && (
             <Button
@@ -460,11 +460,11 @@ export function Import() {
 
       {step === 'mapping' && (
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Mapear colunas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+            <div className="border-b border-border/60 px-4 py-3">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Mapear colunas</p>
+            </div>
+            <div className="space-y-3 px-4 pb-4">
               <div className="space-y-2">
                 <label className="text-xs font-medium">Coluna de Data</label>
                 <Select
@@ -535,8 +535,8 @@ export function Import() {
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <Button
             className="w-full"
@@ -572,11 +572,11 @@ export function Import() {
             )}
           </div>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Classificar todos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
+            <div className="border-b border-border/60 px-4 py-3">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Classificar todos</p>
+            </div>
+            <div className="space-y-3 px-4 pb-4">
               {importMode === 'transactions' && (
                 <div className="grid grid-cols-2 gap-2">
                   <Select defaultValue="mine" onValueChange={v => updateAllRows({ transactionType: v as TransactionType })}>
@@ -632,8 +632,8 @@ export function Import() {
                   </SelectContent>
                 </Select>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <div className="rounded-xl border overflow-hidden">
             <div className="max-h-[60vh] overflow-auto">
