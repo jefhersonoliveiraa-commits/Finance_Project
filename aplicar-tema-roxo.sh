@@ -1,3 +1,27 @@
+#!/usr/bin/env bash
+#
+# aplicar-tema-roxo.sh
+# Restaura o design system completo (Tailwind v4) que a IA havia deletado,
+# na paleta ROXA/LILAS com vidro fosco. Corrige o "texto invisivel"
+# (text-muted-foreground), tokens do shadcn (accent/popover/sidebar/ring),
+# escala de raios, fontes (Plus Jakarta + Geist Mono) e .glass-card.
+# Valida com build e da push no main.
+#
+# Uso (na raiz do repo, no Codespace):
+#   bash aplicar-tema-roxo.sh
+#
+set -euo pipefail
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ERRO: rode na raiz do repositorio git."; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TAG="backup/pre-tema-${STAMP}"
+git tag "$TAG"
+echo "==> Backup criado na tag: $TAG (reverter: git reset --hard $TAG)"
+
+echo "==> Escrevendo src/index.css (design system roxo/lilas completo)..."
+cat > src/index.css << 'CSS_EOF'
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "@fontsource/geist-mono/400.css";
@@ -192,3 +216,54 @@
     }
   }
 }
+CSS_EOF
+
+echo "==> Escrevendo index.html (fonte Plus Jakarta + lang pt-BR)..."
+cat > index.html << 'HTML_EOF'
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#09090b" />
+    <title>Finanças</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+HTML_EOF
+
+echo "==> Corrigindo typo de classe (primary_fg -> primary-foreground)..."
+sed -i 's/text-primary_fg/text-primary-foreground/g' src/components/layout/BottomNav.tsx src/components/layout/Sidebar.tsx 2>/dev/null || true
+
+echo "==> Garantindo dependencias..."
+[ -d node_modules ] || npm install
+
+echo "==> BUILD GATE (tsc + vite build)..."
+if ! npm run build; then
+  echo ""
+  echo "############################################################"
+  echo "# BUILD FALHOU. Nada foi commitado nem enviado.            #"
+  echo "# Reverter: git reset --hard $TAG"
+  echo "############################################################"
+  exit 1
+fi
+
+echo "==> Build OK. Commitando e enviando para o main..."
+git config user.email >/dev/null 2>&1 || git config user.email "jefherson@local"
+git config user.name  >/dev/null 2>&1 || git config user.name  "Jefherson"
+git add -A
+git commit -m "style: restaura design system (roxo/lilas, vidro fosco) deletado pela IA + fontes Plus Jakarta/Geist Mono"
+git push origin HEAD:main
+
+echo ""
+echo "############################################################"
+echo "# SUCESSO. Tema roxo/lilas aplicado e enviado para o main. #"
+echo "# Rode 'npm run dev' para ver. Backup na tag: $TAG"
+echo "############################################################"

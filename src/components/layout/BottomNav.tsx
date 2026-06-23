@@ -23,7 +23,7 @@ export function BottomNav({ currentView, onNavigate }: BottomNavProps) {
   return (
     <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
       <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex justify-center">
-        <button className="w-14 h-14 bg-primary text-primary_fg rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(250,250,250,0.25)] active:scale-95 transition-transform">
+        <button className="w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-[0_8px_20px_rgba(250,250,250,0.25)] active:scale-95 transition-transform">
           <Plus className="w-6 h-6" />
         </button>
       </div>

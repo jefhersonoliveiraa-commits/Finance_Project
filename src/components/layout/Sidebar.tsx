@@ -24,7 +24,7 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
     <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card p-4 h-full shrink-0">
       <div className="flex items-center gap-3 mb-10 px-2 mt-2">
         <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-white/10">
-          <Layers className="w-5 h-5 text-primary_fg" />
+          <Layers className="w-5 h-5 text-primary-foreground" />
         </div>
         <span className="font-bold text-xl tracking-tight">Finanças</span>
       </div>
