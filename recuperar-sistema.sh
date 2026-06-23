@@ -1,3 +1,45 @@
+#!/usr/bin/env bash
+#
+# recuperar-sistema.sh
+# Reverte a "cagada" da IA: restaura types.ts, TransactionForm e as paginas
+# Dashboard/Transactions/Receivables para suas versoes completas (com a logica
+# real de my_amount / Meu-Repasse-Rateado), valida com build e da push no main.
+#
+# Uso (na raiz do repo, no terminal do Codespace):
+#   bash recuperar-sistema.sh
+#
+set -euo pipefail
+
+# --- commits de origem das versoes boas (ja existem no historico do repo) ---
+C_FULL="51e66606"   # Dashboard (578l) e Receivables (167l) completos
+C_REDESIGN="f53fd671" # Transactions (616l) e TransactionForm (706l) redesenhados
+
+echo "==> Verificando ambiente..."
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ERRO: rode na raiz do repositorio git."; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+
+for c in "$C_FULL" "$C_REDESIGN"; do
+  git cat-file -e "${c}^{commit}" 2>/dev/null || { echo "ERRO: commit $c nao encontrado no historico local. Rode 'git fetch --all' e tente de novo."; exit 1; }
+done
+
+# --- ponto de retorno seguro ---
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TAG="backup/pre-recuperacao-${STAMP}"
+git tag "$TAG"
+echo "==> Backup criado na tag: $TAG (para reverter: git reset --hard $TAG)"
+
+echo "==> Restaurando paginas e formulario das versoes completas..."
+git show "${C_FULL}:src/pages/Dashboard.tsx"            > src/pages/Dashboard.tsx
+git show "${C_FULL}:src/pages/Receivables.tsx"          > src/pages/Receivables.tsx
+git show "${C_REDESIGN}:src/pages/Transactions.tsx"     > src/pages/Transactions.tsx
+git show "${C_REDESIGN}:src/components/TransactionForm.tsx" > src/components/TransactionForm.tsx
+echo "    Dashboard       -> $(wc -l < src/pages/Dashboard.tsx)l"
+echo "    Receivables     -> $(wc -l < src/pages/Receivables.tsx)l"
+echo "    Transactions    -> $(wc -l < src/pages/Transactions.tsx)l"
+echo "    TransactionForm -> $(wc -l < src/components/TransactionForm.tsx)l"
+
+echo "==> Reescrevendo src/lib/types.ts (completo + tipos das telas novas)..."
+cat > src/lib/types.ts << 'TYPES_EOF'
 export type TransactionMethod = 'credit_card' | 'pix' | 'debit' | 'cash'
 export type TransactionType = 'mine' | 'repasse' | 'rateado'
 export type ReimbursementStatus = 'pending' | 'received'
@@ -278,3 +320,33 @@ export const TYPE_LABELS: Record<TransactionType, string> = {
   repasse: 'Repasse',
   rateado: 'Rateado',
 }
+TYPES_EOF
+
+echo "==> Limpando imports nao usados em Goals.tsx..."
+sed -i "s/import { Target, Car, Home, Plane } from 'lucide-react'/import { Target } from 'lucide-react'/" src/pages/Goals.tsx || true
+
+echo "==> Garantindo dependencias..."
+[ -d node_modules ] || npm install
+
+echo "==> BUILD GATE (tsc + vite build)..."
+if ! npm run build; then
+  echo ""
+  echo "############################################################"
+  echo "# BUILD FALHOU. Nada foi commitado nem enviado.            #"
+  echo "# Para reverter tudo: git reset --hard $TAG"
+  echo "############################################################"
+  exit 1
+fi
+
+echo "==> Build OK. Commitando e enviando para o main..."
+git config user.email >/dev/null 2>&1 || git config user.email "jefherson@local"
+git config user.name  >/dev/null 2>&1 || git config user.name  "Jefherson"
+git add -A
+git commit -m "fix: recupera types.ts, TransactionForm e paginas (Dashboard/Transactions/Receivables) destruidos pela IA"
+git push origin HEAD:main
+
+echo ""
+echo "############################################################"
+echo "# SUCESSO. Sistema recuperado e enviado para o main.       #"
+echo "# Backup de seguranca na tag: $TAG"
+echo "############################################################"

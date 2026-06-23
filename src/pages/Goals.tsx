@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Target, Car, Home, Plane } from 'lucide-react'
+import { Target } from 'lucide-react'
 import type { Goal } from '@/lib/types'
 
 export function Goals() {
