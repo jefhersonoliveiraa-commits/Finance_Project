@@ -227,7 +227,6 @@ export interface FinanceStats {
   cardBills: CardBill[]
   subscriptions: SubscriptionStat[]
   annualSubscriptionsTotal: number
-  marginProjection: number
 }
 
 export interface PersonReceivable {

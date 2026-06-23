@@ -1,3 +1,471 @@
+#!/usr/bin/env bash
+#
+# aplicar-margem-futura.sh
+# Adiciona o painel "Margem projetada - proximos 3 meses" ao dashboard:
+# renda recorrente menos parcelas comprometidas + assinaturas (antes do
+# gasto variavel), seguindo o toggle Apenas meu / Visao geral.
+# Tambem remove a marginProjection morta (que era copia do sobraReal).
+# Valida com build e da push no main.
+#
+# Uso (na raiz do repo, no Codespace):
+#   bash aplicar-margem-futura.sh
+#
+set -euo pipefail
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ERRO: rode na raiz do repositorio git."; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TAG="backup/pre-margem-${STAMP}"
+git tag "$TAG"
+echo "==> Backup criado na tag: $TAG (reverter: git reset --hard $TAG)"
+
+echo "==> Escrevendo src/lib/types.ts..."
+cat > src/lib/types.ts << 'TYPES_EOF'
+export type TransactionMethod = 'credit_card' | 'pix' | 'debit' | 'cash'
+export type TransactionType = 'mine' | 'repasse' | 'rateado'
+export type ReimbursementStatus = 'pending' | 'received'
+export type View = 'dashboard' | 'transactions' | 'credit-card' | 'receivables' | 'settings' | 'import' | 'budget' | 'goals' | 'auth'
+
+export interface Subcategory {
+  id: string
+  category_id: string
+  name: string
+  color: string | null
+  created_at: string
+}
+
+export interface BudgetLimit {
+  id: string
+  category_id: string
+  monthly_limit: number
+  year: number
+  month: number
+  created_at: string
+  updated_at: string
+  category?: Category
+}
+
+export interface BankAccount {
+  id: string
+  name: string
+  color: string
+  initial_balance: number
+  current_balance: number
+  created_at: string
+}
+
+export interface CardAccount {
+  id: string
+  name: string
+  color: string
+  closing_day: number
+  due_day: number
+  bank_account_id: string | null
+  credit_limit: number | null
+  created_at: string
+  bank_account?: BankAccount
+}
+
+export interface Transfer {
+  id: string
+  date: string
+  description: string
+  amount: number
+  from_account_id: string
+  to_account_id: string
+  created_at: string
+  from_account?: BankAccount
+  to_account?: BankAccount
+}
+
+export interface Category {
+  id: string
+  name: string
+  color: string
+  created_at: string
+  subcategories?: Subcategory[]
+}
+
+export interface Person {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface TransactionPerson {
+  id: string
+  transaction_id: string
+  person_id: string
+  amount: number
+  reimbursement_status: ReimbursementStatus
+  received_at: string | null
+  created_at: string
+  person?: Person
+}
+
+export interface Transaction {
+  id: string
+  date: string
+  description: string
+  amount: number
+  my_amount: number
+  method: TransactionMethod
+  type: TransactionType
+  category_id: string | null
+  subcategory_id: string | null
+  bank_account_id: string | null
+  credit_card_id: string | null
+  purchase_date: string | null
+  billing_year: number | null
+  billing_month: number | null
+  installment_count: number
+  installment_number: number
+  installment_group_id: string | null
+  is_recurring: boolean
+  recurring_day: number | null
+  recurring_group_id: string | null
+  notes: string | null
+  created_at: string
+  category?: Category
+  subcategory?: Subcategory
+  transaction_people?: TransactionPerson[]
+  credit_card?: CardAccount
+  bank_account?: BankAccount
+}
+
+export interface Income {
+  id: string
+  date: string
+  description: string
+  amount: number
+  is_recurring: boolean
+  recurring_day: number | null
+  recurring_group_id: string | null
+  bank_account_id: string | null
+  created_at: string
+}
+
+export interface TransactionFormData {
+  id?: string
+  date: string
+  description: string
+  amount: number
+  my_amount: number
+  method: TransactionMethod
+  type: TransactionType
+  category_id: string | null
+  subcategory_id: string | null
+  bank_account_id: string | null
+  credit_card_id: string | null
+  purchase_date: string | null
+  billing_year: number | null
+  billing_month: number | null
+  installment_count: number
+  installment_number: number
+  installment_group_id: string | null
+  is_recurring: boolean
+  recurring_day: number | null
+  recurring_group_id: string | null
+  notes: string | null
+  people_splits: { person_id: string; amount: number }[]
+}
+
+export interface IncomeFormData {
+  id?: string
+  date: string
+  description: string
+  amount: number
+  is_recurring: boolean
+  recurring_day: number | null
+  recurring_group_id: string | null
+  bank_account_id: string | null
+}
+
+export interface TransferFormData {
+  date: string
+  description: string
+  amount: number
+  from_account_id: string
+  to_account_id: string
+}
+
+export interface CardBill {
+  card: { id: string; name: string; color: string }
+  total: number
+  myAmount: number
+}
+
+export interface SubscriptionStat {
+  description: string
+  monthlyAmount: number
+  annualAmount: number
+  category: Category | null
+  card: { id: string; name: string; color: string } | null
+}
+
+export interface CardBillPayment {
+  id: string
+  credit_card_id: string
+  billing_year: number
+  billing_month: number
+  amount: number
+  bank_account_id: string | null
+  paid_at: string
+}
+
+export interface FutureBillCard {
+  cardId: string
+  cardName: string
+  cardColor: string
+  total: number
+  myAmount: number
+  aReceber: number
+  fromInstallments: number
+  isPaid: boolean
+}
+
+export interface FutureBillMonth {
+  year: number
+  month: number
+  total: number
+  myAmount: number
+  aReceber: number
+  fromInstallments: number
+  cards: FutureBillCard[]
+}
+
+export interface FinanceStats {
+  gastoBruto: number
+  gastoRealMeu: number
+  totalIncome: number
+  sobraReal: number
+  aReceberTotal: number
+  aReceberPending: number
+  aReceberReceived: number
+  aReceberByPerson: PersonReceivable[]
+  byCategory: CategoryStat[]
+  byMethod: MethodStat[]
+  cardBillTotal: number
+  cardBillMine: number
+  cardBills: CardBill[]
+  subscriptions: SubscriptionStat[]
+  annualSubscriptionsTotal: number
+}
+
+export interface PersonReceivable {
+  person: Person
+  totalPending: number
+  totalReceived: number
+  items: ReceivableItem[]
+}
+
+export interface ReceivableItem {
+  transactionPerson: TransactionPerson
+  transaction: Transaction
+}
+
+export interface CategoryStat {
+  category: Category | null
+  amount: number
+  myAmount: number
+  label: string
+  color: string
+}
+
+export interface MethodStat {
+  method: TransactionMethod
+  label: string
+  amount: number
+  myAmount: number
+}
+
+export interface Goal {
+  id: string
+  title: string
+  target_amount: number
+  current_amount: number
+  deadline: string
+  icon: string
+}
+
+export const METHOD_LABELS: Record<TransactionMethod, string> = {
+  credit_card: 'Cartão de Crédito',
+  pix: 'PIX / Transferência',
+  debit: 'Débito',
+  cash: 'Dinheiro',
+}
+
+export const TYPE_LABELS: Record<TransactionType, string> = {
+  mine: 'Meu',
+  repasse: 'Repasse',
+  rateado: 'Rateado',
+}
+TYPES_EOF
+
+echo "==> Escrevendo src/lib/stats.ts..."
+cat > src/lib/stats.ts << 'STATS_EOF'
+import type {
+  Transaction,
+  Income,
+  Person,
+  Category,
+  FinanceStats,
+  PersonReceivable,
+  CategoryStat,
+  MethodStat,
+  TransactionMethod,
+  CardAccount,
+  CardBill,
+  SubscriptionStat,
+} from './types'
+import { METHOD_LABELS } from './types'
+
+export function computeStats(
+  transactions: Transaction[],
+  incomes: Income[],
+  people: Person[],
+  categories: Category[],
+  cardAccounts: CardAccount[],
+): FinanceStats {
+  const gastoBruto = transactions.reduce((s, t) => s + t.amount, 0)
+  const gastoRealMeu = transactions.reduce((s, t) => s + t.my_amount, 0)
+  const totalIncome = incomes.reduce((s, i) => s + i.amount, 0)
+  const sobraReal = totalIncome - gastoRealMeu
+
+  // Card bill stats
+  const cardTx = transactions.filter(t => t.method === 'credit_card')
+  const cardBillTotal = cardTx.reduce((s, t) => s + t.amount, 0)
+  const cardBillMine = cardTx.reduce((s, t) => s + t.my_amount, 0)
+
+  // Card bills by card
+  const cardMap = new Map(cardAccounts.map(c => [c.id, c]))
+  const cardBillsMap = new Map<string, CardBill>()
+  for (const t of cardTx) {
+    const cardId = t.credit_card_id || '__none__'
+    const cardInfo = t.credit_card_id ? cardMap.get(t.credit_card_id) : null
+    if (!cardBillsMap.has(cardId)) {
+      cardBillsMap.set(cardId, {
+        card: cardInfo ? { id: cardInfo.id, name: cardInfo.name, color: cardInfo.color } : { id: '__none__', name: 'Sem cartão', color: '#6b7280' },
+        total: 0,
+        myAmount: 0,
+      })
+    }
+    const entry = cardBillsMap.get(cardId)!
+    entry.total += t.amount
+    entry.myAmount += t.my_amount
+  }
+  const cardBills = Array.from(cardBillsMap.values()).sort((a, b) => b.total - a.total)
+
+  // Subscriptions (recurring card transactions)
+  const recurringCardTx = cardTx.filter(t => t.is_recurring)
+  const subscriptionsMap = new Map<string, SubscriptionStat>()
+  for (const t of recurringCardTx) {
+    const key = t.description.toLowerCase().trim()
+    if (!subscriptionsMap.has(key)) {
+      const cardInfo = t.credit_card_id ? cardMap.get(t.credit_card_id) : null
+      subscriptionsMap.set(key, {
+        description: t.description,
+        monthlyAmount: 0,
+        annualAmount: 0,
+        category: t.category || null,
+        card: cardInfo ? { id: cardInfo.id, name: cardInfo.name, color: cardInfo.color } : null,
+      })
+    }
+    const entry = subscriptionsMap.get(key)!
+    entry.monthlyAmount += t.my_amount
+    entry.annualAmount = Math.round(entry.monthlyAmount * 12 * 100) / 100
+  }
+  const subscriptions = Array.from(subscriptionsMap.values()).sort((a, b) => b.monthlyAmount - a.monthlyAmount)
+  const annualSubscriptionsTotal = subscriptions.reduce((s, sub) => s + sub.annualAmount, 0)
+
+  // A receber
+  const allTPs = transactions.flatMap(t =>
+    (t.transaction_people || []).map(tp => ({ tp, t })),
+  )
+  const pendingTPs = allTPs.filter(x => x.tp.reimbursement_status === 'pending')
+  const receivedTPs = allTPs.filter(x => x.tp.reimbursement_status === 'received')
+  const aReceberPending = pendingTPs.reduce((s, x) => s + x.tp.amount, 0)
+  const aReceberReceived = receivedTPs.reduce((s, x) => s + x.tp.amount, 0)
+  const aReceberTotal = aReceberPending + aReceberReceived
+
+  // A receber by person
+  const peopleMap = new Map(people.map(p => [p.id, p]))
+  const byPersonMap = new Map<string, PersonReceivable>()
+  for (const { tp, t } of allTPs) {
+    const person = tp.person || peopleMap.get(tp.person_id)
+    if (!person) continue
+    if (!byPersonMap.has(person.id)) {
+      byPersonMap.set(person.id, { person, totalPending: 0, totalReceived: 0, items: [] })
+    }
+    const entry = byPersonMap.get(person.id)!
+    if (tp.reimbursement_status === 'pending') {
+      entry.totalPending += tp.amount
+    } else {
+      entry.totalReceived += tp.amount
+    }
+    entry.items.push({ transactionPerson: tp, transaction: t })
+  }
+  const aReceberByPerson = Array.from(byPersonMap.values()).sort(
+    (a, b) => b.totalPending - a.totalPending,
+  )
+
+  // By category
+  const catMap = new Map(categories.map(c => [c.id, c]))
+  const byCatMap = new Map<string, CategoryStat>()
+  for (const t of transactions) {
+    const key = t.category_id || '__none__'
+    const cat = t.category_id
+      ? (t.category || catMap.get(t.category_id) || null)
+      : null
+    if (!byCatMap.has(key)) {
+      byCatMap.set(key, {
+        category: cat,
+        amount: 0,
+        myAmount: 0,
+        label: cat?.name || 'Sem categoria',
+        color: cat?.color || '#6b7280',
+      })
+    }
+    const entry = byCatMap.get(key)!
+    entry.amount += t.amount
+    entry.myAmount += t.my_amount
+  }
+  const byCategory = Array.from(byCatMap.values()).sort((a, b) => b.myAmount - a.myAmount)
+
+  // By method
+  const methodOrder: TransactionMethod[] = ['credit_card', 'pix', 'debit', 'cash']
+  const byMethodMap = new Map<TransactionMethod, MethodStat>(
+    methodOrder.map(m => [m, { method: m, label: METHOD_LABELS[m], amount: 0, myAmount: 0 }]),
+  )
+  for (const t of transactions) {
+    const entry = byMethodMap.get(t.method)!
+    entry.amount += t.amount
+    entry.myAmount += t.my_amount
+  }
+  const byMethod = Array.from(byMethodMap.values()).filter(m => m.amount > 0)
+
+  return {
+    gastoBruto,
+    gastoRealMeu,
+    totalIncome,
+    sobraReal,
+    aReceberTotal,
+    aReceberPending,
+    aReceberReceived,
+    aReceberByPerson,
+    byCategory,
+    byMethod,
+    cardBillTotal,
+    cardBillMine,
+    cardBills,
+    subscriptions,
+    annualSubscriptionsTotal,
+  }
+}
+STATS_EOF
+
+echo "==> Escrevendo src/pages/Dashboard.tsx..."
+cat > src/pages/Dashboard.tsx << 'DASHBOARD_TSX_EOF'
 import { useState } from 'react'
 import {
   Plus,
@@ -670,3 +1138,30 @@ function RecentRow({ tx }: { tx: Transaction }) {
     </div>
   )
 }
+DASHBOARD_TSX_EOF
+
+echo "==> Garantindo dependencias..."
+[ -d node_modules ] || npm install
+
+echo "==> BUILD GATE (tsc + vite build)..."
+if ! npm run build; then
+  echo ""
+  echo "############################################################"
+  echo "# BUILD FALHOU. Nada foi commitado nem enviado.            #"
+  echo "# Reverter: git reset --hard $TAG"
+  echo "############################################################"
+  exit 1
+fi
+
+echo "==> Build OK. Commitando e enviando para o main..."
+git config user.email >/dev/null 2>&1 || git config user.email "jefherson@local"
+git config user.name  >/dev/null 2>&1 || git config user.name  "Jefherson"
+git add -A
+git commit -m "feat: painel de margem projetada (proximos 3 meses) + remove marginProjection morta"
+git push origin HEAD:main
+
+echo ""
+echo "############################################################"
+echo "# SUCESSO. Margem futura aplicada e enviada para o main.   #"
+echo "# Rode 'npm run dev' para ver. Backup na tag: $TAG"
+echo "############################################################"

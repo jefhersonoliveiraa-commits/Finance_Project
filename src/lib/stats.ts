@@ -72,9 +72,6 @@ export function computeStats(
   const subscriptions = Array.from(subscriptionsMap.values()).sort((a, b) => b.monthlyAmount - a.monthlyAmount)
   const annualSubscriptionsTotal = subscriptions.reduce((s, sub) => s + sub.annualAmount, 0)
 
-  // Margin projection: income minus all real spending this month (all methods)
-  const marginProjection = totalIncome - gastoRealMeu
-
   // A receber
   const allTPs = transactions.flatMap(t =>
     (t.transaction_people || []).map(tp => ({ tp, t })),
@@ -157,6 +154,5 @@ export function computeStats(
     cardBills,
     subscriptions,
     annualSubscriptionsTotal,
-    marginProjection,
   }
 }
