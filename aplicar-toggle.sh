@@ -1,3 +1,26 @@
+#!/usr/bin/env bash
+#
+# aplicar-toggle.sh
+# Adiciona o toggle "Apenas meu / Visao geral" ao Dashboard.
+# Alterna o dashboard inteiro entre my_amount (so o que e seu) e
+# amount/bruto (tudo que passou pela conta): hero, gasto, sobra,
+# grafico de categorias e quebra por metodo. Sem mexer em calculo
+# nem em banco. Valida com build e da push no main.
+#
+# Uso (na raiz do repo, no Codespace):
+#   bash aplicar-toggle.sh
+#
+set -euo pipefail
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ERRO: rode na raiz do repositorio git."; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TAG="backup/pre-toggle-${STAMP}"
+git tag "$TAG"
+echo "==> Backup criado na tag: $TAG (reverter: git reset --hard $TAG)"
+
+echo "==> Escrevendo src/pages/Dashboard.tsx (com o toggle)..."
+cat > src/pages/Dashboard.tsx << 'DASHBOARD_TSX_EOF'
 import { useState } from 'react'
 import {
   Plus,
@@ -609,3 +632,30 @@ function RecentRow({ tx }: { tx: Transaction }) {
     </div>
   )
 }
+DASHBOARD_TSX_EOF
+
+echo "==> Garantindo dependencias..."
+[ -d node_modules ] || npm install
+
+echo "==> BUILD GATE (tsc + vite build)..."
+if ! npm run build; then
+  echo ""
+  echo "############################################################"
+  echo "# BUILD FALHOU. Nada foi commitado nem enviado.            #"
+  echo "# Reverter: git reset --hard $TAG"
+  echo "############################################################"
+  exit 1
+fi
+
+echo "==> Build OK. Commitando e enviando para o main..."
+git config user.email >/dev/null 2>&1 || git config user.email "jefherson@local"
+git config user.name  >/dev/null 2>&1 || git config user.name  "Jefherson"
+git add -A
+git commit -m "feat: toggle Apenas meu / Visao geral no dashboard (alterna my_amount vs bruto)"
+git push origin HEAD:main
+
+echo ""
+echo "############################################################"
+echo "# SUCESSO. Toggle aplicado e enviado para o main.          #"
+echo "# Rode 'npm run dev' para ver. Backup na tag: $TAG"
+echo "############################################################"
