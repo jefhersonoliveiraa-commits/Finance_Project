@@ -221,9 +221,22 @@ export function detectCSVColumns(headers: string[]): Partial<ColumnMapping> {
   const headerLower = headers.map(h => h.toLowerCase().trim())
   const mapping: Partial<ColumnMapping> = {}
 
-  const datePatterns = ['data', 'date', 'dt', 'data transacao', 'dt transacao', 'dt_transacao']
-  const descPatterns = ['descricao', 'description', 'memo', 'historico', 'descricao transacao']
-  const amountPatterns = ['valor', 'amount', 'value', 'montante', 'vlr', 'valor transacao']
+  // Padroes ordenados por especificidade (Nubank, C6, Bradesco, genericos)
+  const datePatterns = [
+    'data', 'date', 'data lançamento', 'data lancamento',
+    'dt lançamento', 'dt lancamento', 'dt transacao', 'dt_transacao',
+    'data pagamento', 'data compra',
+  ]
+  const descPatterns = [
+    'descricao', 'description', 'memo', 'historico',
+    'lançamento', 'lancamento', 'estabelecimento',
+    'descricao transacao', 'titulo',
+  ]
+  const amountPatterns = [
+    'valor', 'amount', 'value', 'montante',
+    'valor (r$)', 'valor(r$)', 'vlr', 'valor transacao',
+    'valor lançamento', 'valor lancamento',
+  ]
 
   for (const pattern of datePatterns) {
     const idx = headerLower.findIndex(h => h.includes(pattern))
