@@ -1,3 +1,19 @@
+#!/usr/bin/env bash
+# aplicar-import-fix-extratos.sh
+# Corrige a importacao para os 3 formatos dos seus extratos:
+#   Nubank OFX  → ja funcionava, sem mudanca
+#   Bradesco OFX → ja funcionava (latin-1 autodetectado), sem mudanca
+#   PicPay CSV  → CORRIGIDO: sinal matematico U+2212, coluna "origem / destino",
+#                 deteccao de tipo por "Pix recebido"/"Pagamento realizado"
+set -euo pipefail
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ERRO: rode na raiz do repo."; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TAG="backup/pre-import-picpay-${STAMP}"
+git tag "$TAG"
+echo "==> Backup: $TAG"
+echo "==> src/lib/import-utils.ts..."
+cat > src/lib/import-utils.ts << 'FILEOF'
 import type { TransactionMethod, TransactionType } from './types'
 
 export interface ParsedTransaction {
@@ -290,3 +306,19 @@ export function isValidDate(dateStr: string): boolean {
   const date = new Date(dateStr)
   return !isNaN(date.getTime()) && dateStr.match(/^\d{4}-\d{2}-\d{2}$/) !== null
 }
+FILEOF
+echo "==> Garantindo dependencias..."
+[ -d node_modules ] || npm install
+
+echo "==> BUILD GATE..."
+if ! npm run build; then
+  echo "BUILD FALHOU. Reverter: git reset --hard $TAG"
+  exit 1
+fi
+
+git config user.email >/dev/null 2>&1 || git config user.email "jefherson@local"
+git config user.name  >/dev/null 2>&1 || git config user.name  "Jefherson"
+git add -A
+git commit -m "fix: importacao PicPay CSV (sinal U+2212, coluna origem/destino, tipo por descricao)"
+git push origin HEAD:main
+echo "SUCESSO. Backup: $TAG"
