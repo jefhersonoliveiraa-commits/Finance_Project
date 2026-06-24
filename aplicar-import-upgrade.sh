@@ -1,3 +1,21 @@
+#!/usr/bin/env bash
+# aplicar-import-upgrade.sh
+# Upgrade da tela de importação:
+# 1. Checkbox por linha para marcar/desmarcar o que importar
+# 2. Checkbox global no header para selecionar/deselecionar tudo
+# 3. Indicador visual crédito (verde ↑) / débito (vermelho ↓)
+# 4. Contador no botão: "Importar 23 lançamentos · R$ 1.847,00"
+# 5. Badge de "X ignorados" no summary
+# Lógica de gravação não alterada.
+set -euo pipefail
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "ERRO: rode na raiz do repo."; exit 1; }
+cd "$(git rev-parse --show-toplevel)"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+TAG="backup/pre-import-upgrade-${STAMP}"
+git tag "$TAG"
+echo "==> Backup: $TAG"
+echo "==> src/pages/Import.tsx..."
+cat > src/pages/Import.tsx << 'FILEOF'
 import { useState, useRef, useMemo, useCallback } from 'react'
 import { Upload, FileText, AlertCircle, Check, Loader2, ArrowLeft, CreditCard, Building2, TrendingUp, TrendingDown, MinusCircle } from 'lucide-react'
 
@@ -845,3 +863,19 @@ export function Import() {
     </div>
   )
 }
+FILEOF
+echo "==> Garantindo dependencias..."
+[ -d node_modules ] || npm install
+
+echo "==> BUILD GATE..."
+if ! npm run build; then
+  echo "BUILD FALHOU. Reverter: git reset --hard $TAG"
+  exit 1
+fi
+
+git config user.email >/dev/null 2>&1 || git config user.email "jefherson@local"
+git config user.name  >/dev/null 2>&1 || git config user.name  "Jefherson"
+git add -A
+git commit -m "feat: upgrade importacao — checkbox por linha, indicador credito/debito, contador no botao"
+git push origin HEAD:main
+echo "SUCESSO. Backup: $TAG"
