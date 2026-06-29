@@ -41,16 +41,7 @@ export function AppLayout({ children, currentView, onNavigate }: AppLayoutProps)
         'fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ease-out',
         drawerOpen ? 'translate-x-0' : '-translate-x-full',
       )}>
-        {/* Botão fechar dentro do drawer */}
-        <div className="relative h-full">
-          <button
-            onClick={() => setDrawerOpen(false)}
-            className="absolute right-3 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <Sidebar currentView={currentView} onNavigate={navigate} />
-        </div>
+        <Sidebar currentView={currentView} onNavigate={navigate} />
       </div>
 
       {/* Conteúdo principal */}
@@ -59,10 +50,10 @@ export function AppLayout({ children, currentView, onNavigate }: AppLayoutProps)
         {/* Header mobile com hamburger */}
         <div className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border/60 bg-background/80 backdrop-blur-xl px-4 py-3">
           <button
-            onClick={() => setDrawerOpen(true)}
+            onClick={() => setDrawerOpen(v => !v)}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition"
           >
-            <Menu className="h-5 w-5" />
+            {drawerOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
           {/* Logo / nome do app */}
