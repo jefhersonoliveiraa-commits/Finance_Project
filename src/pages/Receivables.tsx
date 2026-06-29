@@ -19,8 +19,8 @@ export function Receivables() {
           <h1 className="text-xl font-bold tracking-tight">Acertos & Rateios</h1>
           <p className="text-sm text-muted-foreground">Valores a receber de terceiros</p>
         </div>
-        <MonthSelector />
-      </div>
+        <div className="hidden md:block"><MonthSelector />
+      </div></div>
 
       {/* Summary */}
       {loading ? (
