@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Trash2, Edit2, Filter, Upload, RefreshCw, TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react'
+import { Plus, Search, Trash2, Edit2, Filter, Upload, RefreshCw, TrendingUp, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -76,7 +76,6 @@ export function Transactions() {
   const [editInc, setEditInc] = useState<Income | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteKind, setDeleteKind] = useState<EntryKind>('expense')
-  const [fabOpen, setFabOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [filterKind, setFilterKind] = useState<EntryKind | 'all'>('all')
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all')
@@ -174,7 +173,7 @@ export function Transactions() {
   const hasActiveFilters = filterKind !== 'all' || filterType !== 'all' || filterMethod !== 'all' || filterCategory !== 'all' || filterPerson !== 'all'
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-6">
+    <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -375,40 +374,7 @@ export function Transactions() {
         </div>
       )}
 
-      {/* FAB with expand menu */}
-      <div className="fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2">
-        {fabOpen && (
-          <>
-            <button
-              onClick={() => { setFabOpen(false); setEditInc(null); setIncOpen(true) }}
-              className="flex items-center gap-2 rounded-full bg-positive px-4 py-2.5 text-sm font-semibold text-positive-foreground shadow-lg transition-all active:scale-95"
-            >
-              <TrendingUp className="h-4 w-4" />
-              Receita
-            </button>
-            <button
-              onClick={() => { setFabOpen(false); setEditTx(null); setTxOpen(true) }}
-              className="flex items-center gap-2 rounded-full bg-destructive px-4 py-2.5 text-sm font-semibold text-destructive-foreground shadow-lg transition-all active:scale-95"
-            >
-              <TrendingDown className="h-4 w-4" />
-              Gasto
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => setFabOpen(v => !v)}
-          className={cn(
-            'flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-all active:scale-95',
-            fabOpen && 'rotate-45',
-          )}
-        >
-          <Plus className="h-6 w-6 transition-transform" />
-        </button>
-      </div>
-
-      {fabOpen && (
-        <div className="fixed inset-0 z-30" onClick={() => setFabOpen(false)} />
-      )}
+      
 
       <TransactionForm
         open={txOpen}
