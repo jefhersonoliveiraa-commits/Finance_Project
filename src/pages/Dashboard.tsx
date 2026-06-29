@@ -94,7 +94,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 pb-6">
+    <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -128,7 +128,7 @@ export function Dashboard() {
             Visão geral
           </button>
         </div>
-        <span className="text-[11px] text-tertiary">
+        <span className="hidden sm:block text-[11px] text-tertiary">
           {isMine ? 'Só o que é seu' : 'Tudo que passou pela conta'}
         </span>
       </div>
