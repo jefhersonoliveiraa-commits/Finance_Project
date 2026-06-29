@@ -51,7 +51,7 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   }
 
   return (
-    <aside className="flex flex-col w-64 border-r border-border/60 bg-[var(--sidebar)] p-4 h-full shrink-0">
+    <aside className="flex flex-col w-64 border-r border-border/60 bg-sidebar p-4 h-full shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-8 px-2 mt-1 pr-10 md:pr-2">
         <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shadow-lg shrink-0">
