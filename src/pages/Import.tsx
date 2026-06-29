@@ -27,7 +27,7 @@ type ImportStep = 'upload' | 'mapping' | 'preview' | 'done'
 
 export function Import() {
   const {
-    transactions, transfers, categories, bankAccounts, cardAccounts,
+    transactions, transfers, categories, subcategories, bankAccounts, cardAccounts,
     selectedMonth, addTransaction, addTransfer,
   } = useFinance()
 
@@ -193,6 +193,7 @@ export function Import() {
         category_id: memoryMatch?.category_id || null,
         bank_account_id: memoryMatch?.bank_account_id || null,
         credit_card_id: memoryMatch?.credit_card_id || (importMode === 'card_statement' ? selectedCardId : null),
+        subcategory_id: null,
         rowKind: suggestedKind,
         transfer_from_account_id: null,
         transfer_to_account_id: null,
@@ -262,7 +263,7 @@ export function Import() {
               amount: row.amount, my_amount: myAmount,
               method: 'credit_card' as TransactionMethod,
               type: row.transactionType,
-              category_id: row.category_id, subcategory_id: null,
+              category_id: row.category_id, subcategory_id: row.subcategory_id,
               bank_account_id: null, credit_card_id: row.credit_card_id,
               purchase_date: row.date, billing_year: billingYear,
               billing_month: billingMonth,
@@ -277,7 +278,7 @@ export function Import() {
             date: row.date, description: row.description,
             amount: row.amount, my_amount: myAmount,
             method: row.method, type: row.transactionType,
-            category_id: row.category_id, subcategory_id: null,
+            category_id: row.category_id, subcategory_id: row.subcategory_id,
             bank_account_id: row.method === 'credit_card' ? null : row.bank_account_id,
             credit_card_id: row.method === 'credit_card' ? row.credit_card_id : null,
             purchase_date: row.method === 'credit_card' ? row.date : null,
@@ -614,6 +615,7 @@ export function Import() {
                       <TableHead className="text-xs w-[90px]">Método</TableHead>
                     )}
                     <TableHead className="text-xs w-[110px]">Categoria</TableHead>
+                    <TableHead className="text-xs w-[110px]">Subcategoria</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -781,7 +783,10 @@ export function Import() {
                           {row.rowKind === 'transaction' && !row.isDuplicate && (
                             <Select
                               value={row.category_id || 'none'}
-                              onValueChange={v => updateRow(row.id, { category_id: v === 'none' ? null : v })}
+                              onValueChange={v => updateRow(row.id, {
+                                category_id: v === 'none' ? null : v,
+                                subcategory_id: null, // reset subcategoria ao trocar categoria
+                              })}
                             >
                               <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                               <SelectContent>
@@ -792,6 +797,28 @@ export function Import() {
                               </SelectContent>
                             </Select>
                           )}
+                        </TableCell>
+
+                        {/* Subcategoria (só quando tem categoria selecionada) */}
+                        <TableCell className="text-xs">
+                          {row.rowKind === 'transaction' && !row.isDuplicate && row.category_id && (() => {
+                            const catSubs = subcategories.filter(s => s.category_id === row.category_id)
+                            if (catSubs.length === 0) return null
+                            return (
+                              <Select
+                                value={row.subcategory_id || 'none'}
+                                onValueChange={v => updateRow(row.id, { subcategory_id: v === 'none' ? null : v })}
+                              >
+                                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">-</SelectItem>
+                                  {catSubs.map(s => (
+                                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )
+                          })()}
                         </TableCell>
                       </TableRow>
                     )
