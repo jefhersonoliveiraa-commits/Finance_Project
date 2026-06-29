@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ArrowLeftRight, Users, CreditCard,
-  Layers, Settings, PieChart, Target,
+  Layers, Settings, PieChart, Target, Upload,
 } from 'lucide-react'
 import { useFinance } from '@/context/FinanceContext'
 import { cn } from '@/lib/utils'
@@ -14,7 +14,10 @@ interface SidebarProps {
 export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   const { stats } = useFinance()
   const pendingRateios = stats?.aReceberByPerson
-    ? stats.aReceberByPerson.reduce((s, p) => s + p.items.filter(i => i.transactionPerson.reimbursement_status === 'pending').length, 0)
+    ? stats.aReceberByPerson.reduce(
+        (s, p) => s + p.items.filter(i => i.transactionPerson.reimbursement_status === 'pending').length,
+        0,
+      )
     : 0
 
   const navItem = (
@@ -48,10 +51,10 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden md:flex flex-col w-60 border-r border-border/60 bg-card/50 backdrop-blur-xl p-4 h-full shrink-0">
+    <aside className="flex flex-col w-64 border-r border-border/60 bg-card/50 backdrop-blur-xl p-4 h-full shrink-0">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-8 px-2 mt-1">
-        <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shadow-lg">
+      <div className="flex items-center gap-3 mb-8 px-2 mt-1 pr-10 md:pr-2">
+        <div className="w-8 h-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shadow-lg shrink-0">
           <Layers className="w-4 h-4 text-primary" />
         </div>
         <span className="font-bold text-base tracking-tight">Finanças</span>
@@ -77,9 +80,10 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
       {/* Gestão */}
       <p className="text-[10px] uppercase font-bold tracking-widest text-tertiary mb-2 px-2">Gestão</p>
       <nav className="flex flex-col gap-0.5 mb-6">
-        {navItem('budget',      <PieChart    className="w-4 h-4" />, 'Orçamentos')}
-        {navItem('credit-card', <CreditCard  className="w-4 h-4" />, 'Cartões')}
-        {navItem('goals',       <Target      className="w-4 h-4" />, 'Metas')}
+        {navItem('budget',      <PieChart   className="w-4 h-4" />, 'Orçamentos')}
+        {navItem('credit-card', <CreditCard className="w-4 h-4" />, 'Cartões')}
+        {navItem('goals',       <Target     className="w-4 h-4" />, 'Metas')}
+        {navItem('import',      <Upload     className="w-4 h-4" />, 'Importar')}
       </nav>
 
       {/* Footer */}
