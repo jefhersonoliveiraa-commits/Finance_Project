@@ -48,8 +48,8 @@ export function CreditCardPage() {
           <h1 className="text-xl font-bold tracking-tight">Cartões</h1>
           <p className="text-sm text-muted-foreground capitalize">{billingLabel}</p>
         </div>
-        <MonthSelector />
-      </div>
+        <div className="hidden md:block"><MonthSelector />
+      </div></div>
 
       {loading ? (
         <div className="flex flex-col gap-4">
