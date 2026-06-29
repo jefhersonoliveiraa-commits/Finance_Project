@@ -1,34 +1,23 @@
 import { useState, useRef, useMemo, useCallback } from 'react'
-import { Upload, FileText, AlertCircle, Check, Loader2, ArrowLeft, CreditCard, Building2, TrendingUp, TrendingDown, MinusCircle } from 'lucide-react'
+import {
+  Upload, FileText, AlertCircle, Check, Loader2, ArrowLeft,
+  CreditCard, Building2, TrendingUp, TrendingDown, MinusCircle, ArrowLeftRight,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { useFinance } from '@/context/FinanceContext'
 import { formatBRL, formatDate } from '@/lib/format'
 import {
-  parseOFX,
-  parseCSV,
-  detectCSVColumns,
-  detectDelimiter,
-  type ParsedTransaction,
-  type ImportPreviewRow,
-  type ImportMemory,
+  parseOFX, parseCSV, detectCSVColumns, detectDelimiter,
+  type ParsedTransaction, type ImportPreviewRow, type ImportMemory, type RowKind,
 } from '@/lib/import-utils'
 import type { TransactionMethod, TransactionType } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -38,12 +27,8 @@ type ImportStep = 'upload' | 'mapping' | 'preview' | 'done'
 
 export function Import() {
   const {
-    transactions,
-    categories,
-    bankAccounts,
-    cardAccounts,
-    selectedMonth,
-    addTransaction,
+    transactions, transfers, categories, bankAccounts, cardAccounts,
+    selectedMonth, addTransaction, addTransfer,
   } = useFinance()
 
   const [step, setStep] = useState<ImportStep>('upload')
@@ -79,43 +64,60 @@ export function Import() {
     })
   }, [transactions, selectedMonth])
 
+  // Transferências do mês atual e adjacentes (para detectar duplicatas)
+  const recentTransfers = useMemo(() => {
+    const year = selectedMonth.getFullYear()
+    const month = selectedMonth.getMonth() + 1
+    return (transfers || []).filter(t => {
+      const d = new Date(t.date)
+      const y = d.getFullYear()
+      const m = d.getMonth() + 1
+      // Pega mês atual e adjacentes
+      return (y === year && m >= month - 1 && m <= month + 1)
+    })
+  }, [transfers, selectedMonth])
+
   async function loadImportMemory() {
     const { data, error } = await supabase
       .from('import_memory')
       .select('*')
       .order('use_count', { ascending: false })
       .limit(100)
-    if (!error && data) {
-      setImportMemory(data as ImportMemory[])
-    }
+    if (!error && data) setImportMemory(data as ImportMemory[])
   }
 
   function findMemoryMatch(description: string): ImportMemory | null {
     const descLower = description.toLowerCase().trim()
     for (const mem of importMemory) {
       const patternLower = mem.description_pattern.toLowerCase().trim()
-      if (descLower.includes(patternLower) || patternLower.includes(descLower)) {
-        return mem
-      }
+      if (descLower.includes(patternLower) || patternLower.includes(descLower)) return mem
       const words = descLower.split(/\s+/)
       const patternWords = patternLower.split(/\s+/)
       const matchCount = words.filter(w => patternWords.includes(w)).length
-      if (matchCount >= Math.min(2, patternWords.length)) {
-        return mem
-      }
+      if (matchCount >= Math.min(2, patternWords.length)) return mem
     }
     return null
   }
 
-  function checkDuplicate(date: string, amount: number, description: string): { isDuplicate: boolean; duplicateId?: string } {
-    const match = currentMonthTransactions.find(t => {
+  function checkDuplicate(date: string, amount: number, description: string) {
+    const txMatch = currentMonthTransactions.find(t => {
       const sameDate = t.date === date
       const sameAmount = Math.abs(t.amount - amount) < 0.01
       const similarDesc = t.description.toLowerCase().includes(description.toLowerCase().slice(0, 20)) ||
         description.toLowerCase().includes(t.description.toLowerCase().slice(0, 20))
       return sameDate && sameAmount && similarDesc
     })
-    return match ? { isDuplicate: true, duplicateId: match.id } : { isDuplicate: false }
+    if (txMatch) return { isDuplicate: true, isTransferDuplicate: false, duplicateId: txMatch.id }
+
+    // Checa se é uma transferência já registrada (mesmo valor e data próxima ±1 dia)
+    const tfrMatch = recentTransfers.find(t => {
+      const dateDiff = Math.abs(new Date(t.date).getTime() - new Date(date).getTime())
+      const sameAmount = Math.abs(t.amount - amount) < 0.01
+      return dateDiff <= 86400000 && sameAmount // ±1 dia
+    })
+    if (tfrMatch) return { isDuplicate: false, isTransferDuplicate: true, duplicateId: tfrMatch.id }
+
+    return { isDuplicate: false, isTransferDuplicate: false }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -163,7 +165,6 @@ export function Import() {
 
   function processFile() {
     if (!rawContent) return
-
     setLoading(true)
     loadImportMemory()
 
@@ -178,32 +179,42 @@ export function Import() {
       const memoryMatch = findMemoryMatch(tx.description)
       const dupCheck = checkDuplicate(tx.date, tx.amount, tx.description)
 
+      // Se é uma transferência já registrada, sugerir rowKind = 'skip'
+      const suggestedKind: RowKind = dupCheck.isTransferDuplicate ? 'skip' : 'transaction'
+
       return {
         id: `import-${idx}`,
         date: tx.date,
         description: tx.description,
         amount: tx.amount,
         type: tx.type,
-        method: memoryMatch?.method || (tx.type === 'credit' ? 'pix' : 'pix'),
+        method: memoryMatch?.method || 'pix',
         transactionType: memoryMatch?.type || 'mine',
         category_id: memoryMatch?.category_id || null,
         bank_account_id: memoryMatch?.bank_account_id || null,
         credit_card_id: memoryMatch?.credit_card_id || (importMode === 'card_statement' ? selectedCardId : null),
+        rowKind: suggestedKind,
+        transfer_from_account_id: null,
+        transfer_to_account_id: null,
         isDuplicate: dupCheck.isDuplicate,
+        isTransferDuplicate: dupCheck.isTransferDuplicate,
         duplicateId: dupCheck.duplicateId,
         memoryMatch,
       }
     })
 
+    // Auto-skip transferências já registradas
+    const autoSkipped = new Set(
+      rows.filter(r => r.isTransferDuplicate).map(r => r.id)
+    )
+    setSkipped(autoSkipped)
     setPreviewRows(rows)
     setLoading(false)
     setStep(fileType === 'csv' && !columnMapping.date ? 'mapping' : 'preview')
   }
 
   const updateRow = useCallback((id: string, updates: Partial<ImportPreviewRow>) => {
-    setPreviewRows(prev => prev.map(row =>
-      row.id === id ? { ...row, ...updates } : row
-    ))
+    setPreviewRows(prev => prev.map(row => row.id === id ? { ...row, ...updates } : row))
   }, [])
 
   const updateAllRows = useCallback((updates: Partial<ImportPreviewRow>) => {
@@ -212,13 +223,28 @@ export function Import() {
 
   async function handleImport() {
     setLoading(true)
-
-    const rowsToImport = previewRows.filter(row => !row.isDuplicate)
+    const rowsToImport = previewRows.filter(r => !r.isDuplicate && !skipped.has(r.id))
     let successCount = 0
 
     for (const row of rowsToImport) {
       try {
-        const myAmount = row.transactionType === 'mine' ? row.amount : row.amount
+        if (row.rowKind === 'transfer') {
+          // Grava como transferência entre contas
+          if (row.transfer_from_account_id && row.transfer_to_account_id) {
+            await addTransfer({
+              date: row.date,
+              description: row.description,
+              amount: row.amount,
+              from_account_id: row.transfer_from_account_id,
+              to_account_id: row.transfer_to_account_id,
+            })
+            successCount++
+          }
+          continue
+        }
+
+        // Grava como transação normal
+        const myAmount = row.amount
 
         if (importMode === 'card_statement' && row.credit_card_id) {
           const card = cardAccounts.find(c => c.id === row.credit_card_id)
@@ -226,91 +252,60 @@ export function Import() {
             const purchaseDate = new Date(row.date)
             let billingYear = purchaseDate.getFullYear()
             let billingMonth = purchaseDate.getMonth() + 1
-
             const closingDate = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), card.closing_day)
             if (purchaseDate > closingDate) {
               billingMonth += 1
-              if (billingMonth > 12) {
-                billingMonth = 1
-                billingYear += 1
-              }
+              if (billingMonth > 12) { billingMonth = 1; billingYear += 1 }
             }
-
             await addTransaction({
-              date: row.date,
-              description: row.description,
-              amount: row.amount,
-              my_amount: myAmount,
+              date: row.date, description: row.description,
+              amount: row.amount, my_amount: myAmount,
               method: 'credit_card' as TransactionMethod,
               type: row.transactionType,
-              category_id: row.category_id,
-              subcategory_id: null,
-              bank_account_id: null,
-              credit_card_id: row.credit_card_id,
-              purchase_date: row.date,
-              billing_year: billingYear,
+              category_id: row.category_id, subcategory_id: null,
+              bank_account_id: null, credit_card_id: row.credit_card_id,
+              purchase_date: row.date, billing_year: billingYear,
               billing_month: billingMonth,
-              installment_count: 1,
-              installment_number: 1,
-              installment_group_id: null,
-              is_recurring: false,
-              recurring_day: null,
-              recurring_group_id: null,
-              notes: null,
-              people_splits: [],
+              installment_count: 1, installment_number: 1,
+              installment_group_id: null, is_recurring: false,
+              recurring_day: null, recurring_group_id: null,
+              notes: null, people_splits: [],
             })
           }
         } else {
           await addTransaction({
-            date: row.date,
-            description: row.description,
-            amount: row.amount,
-            my_amount: myAmount,
-            method: row.method,
-            type: row.transactionType,
-            category_id: row.category_id,
-            subcategory_id: null,
+            date: row.date, description: row.description,
+            amount: row.amount, my_amount: myAmount,
+            method: row.method, type: row.transactionType,
+            category_id: row.category_id, subcategory_id: null,
             bank_account_id: row.method === 'credit_card' ? null : row.bank_account_id,
             credit_card_id: row.method === 'credit_card' ? row.credit_card_id : null,
             purchase_date: row.method === 'credit_card' ? row.date : null,
-            billing_year: null,
-            billing_month: null,
-            installment_count: 1,
-            installment_number: 1,
-            installment_group_id: null,
-            is_recurring: false,
-            recurring_day: null,
-            recurring_group_id: null,
-            notes: null,
-            people_splits: [],
+            billing_year: null, billing_month: null,
+            installment_count: 1, installment_number: 1,
+            installment_group_id: null, is_recurring: false,
+            recurring_day: null, recurring_group_id: null,
+            notes: null, people_splits: [],
           })
         }
 
+        // Salva na memória (só transações, não transferências)
         const bestPattern = row.description.toLowerCase().trim().slice(0, 50)
         const { error } = await supabase
           .from('import_memory')
           .upsert({
             description_pattern: bestPattern,
-            method: row.method,
-            type: row.transactionType,
-            category_id: row.category_id,
-            bank_account_id: row.bank_account_id,
+            method: row.method, type: row.transactionType,
+            category_id: row.category_id, bank_account_id: row.bank_account_id,
             credit_card_id: row.credit_card_id,
-            use_count: 1,
-            last_used_at: new Date().toISOString(),
-          }, {
-            onConflict: 'description_pattern',
-            ignoreDuplicates: false,
-          })
+            use_count: 1, last_used_at: new Date().toISOString(),
+          }, { onConflict: 'description_pattern', ignoreDuplicates: false })
 
         if (error && error.code === '23505') {
-          await supabase
-            .from('import_memory')
+          await supabase.from('import_memory')
             .update({
-              method: row.method,
-              type: row.transactionType,
-              category_id: row.category_id,
-              bank_account_id: row.bank_account_id,
+              method: row.method, type: row.transactionType,
+              category_id: row.category_id, bank_account_id: row.bank_account_id,
               credit_card_id: row.credit_card_id,
               use_count: supabase.rpc('increment_use_count'),
               last_used_at: new Date().toISOString(),
@@ -330,26 +325,16 @@ export function Import() {
   }
 
   function reset() {
-    setFile(null)
-    setFileType(null)
-    setRawContent('')
-    setPreviewRows([])
-    setStep('upload')
-    setImportCount(0)
+    setFile(null); setFileType(null); setRawContent('')
+    setPreviewRows([]); setStep('upload'); setImportCount(0)
     setSkipped(new Set())
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function handleBack() {
-    if (step === 'preview' && fileType === 'csv') {
-      setStep('mapping')
-    } else if (step === 'mapping') {
-      setStep('upload')
-    } else if (step === 'preview' && fileType === 'ofx') {
-      setStep('upload')
-    }
+    if (step === 'preview' && fileType === 'csv') setStep('mapping')
+    else if (step === 'mapping') setStep('upload')
+    else if (step === 'preview' && fileType === 'ofx') setStep('upload')
   }
 
   const toggleSkip = useCallback((id: string) => {
@@ -362,19 +347,19 @@ export function Import() {
   }, [])
 
   const toggleSkipAll = useCallback(() => {
-    if (skipped.size < previewRows.filter(r => !r.isDuplicate).length) {
-      setSkipped(new Set(previewRows.filter(r => !r.isDuplicate).map(r => r.id)))
-    } else {
-      setSkipped(new Set())
-    }
+    const nonDupIds = previewRows.filter(r => !r.isDuplicate).map(r => r.id)
+    if (skipped.size < nonDupIds.length) setSkipped(new Set(nonDupIds))
+    else setSkipped(new Set())
   }, [skipped, previewRows])
 
-  const validRows = previewRows.filter(r => !r.isDuplicate && !skipped.has(r.id))
-  const skippedRows = previewRows.filter(r => !r.isDuplicate && skipped.has(r.id))
+  const validRows    = previewRows.filter(r => !r.isDuplicate && !skipped.has(r.id))
+  const skippedRows  = previewRows.filter(r => !r.isDuplicate && skipped.has(r.id))
   const duplicateRows = previewRows.filter(r => r.isDuplicate)
-  const allNonDup = previewRows.filter(r => !r.isDuplicate)
-  const allSkipped = skipped.size >= allNonDup.length && allNonDup.length > 0
+  const transferDupRows = previewRows.filter(r => r.isTransferDuplicate)
+  const allNonDup    = previewRows.filter(r => !r.isDuplicate)
+  const allSkipped   = skipped.size >= allNonDup.length && allNonDup.length > 0
   const selectedTotal = validRows.reduce((s, r) => s + r.amount, 0)
+
 
   return (
     <div className="flex flex-col gap-5">
@@ -387,13 +372,14 @@ export function Import() {
         <h1 className="text-xl font-bold tracking-tight">Importar Extrato</h1>
       </div>
 
+      {/* STEP: UPLOAD */}
       {step === 'upload' && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
             <div className="border-b border-border/60 px-4 py-3">
               <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Tipo de importação</p>
             </div>
-            <div className="space-y-3 px-4 pb-4">
+            <div className="space-y-3 px-4 pb-4 pt-3">
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={importMode === 'transactions' ? 'default' : 'outline'}
@@ -422,10 +408,7 @@ export function Import() {
                     {cardAccounts.map(card => (
                       <SelectItem key={card.id} value={card.id}>
                         <span className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: card.color }}
-                          />
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: card.color }} />
                           {card.name}
                         </span>
                       </SelectItem>
@@ -456,13 +439,7 @@ export function Import() {
                   </Badge>
                 )}
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".ofx,.csv"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              <input ref={fileInputRef} type="file" accept=".ofx,.csv" className="hidden" onChange={handleFileChange} />
             </div>
           </div>
 
@@ -472,92 +449,48 @@ export function Import() {
               onClick={processFile}
               disabled={loading || (importMode === 'card_statement' && !selectedCardId)}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processando...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Continuar
-                </>
-              )}
+              {loading
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processando...</>
+                : <><Check className="h-4 w-4 mr-2" />Continuar</>
+              }
             </Button>
           )}
         </div>
       )}
 
+      {/* STEP: MAPPING */}
       {step === 'mapping' && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
             <div className="border-b border-border/60 px-4 py-3">
               <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Mapear colunas</p>
             </div>
-            <div className="space-y-3 px-4 pb-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Coluna de Data</label>
-                <Select
-                  value={columnMapping.date || detectedMapping?.date || ''}
-                  onValueChange={v => setColumnMapping(prev => ({ ...prev, date: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rawContent.split('\n')[0]?.split(delimiter).map((h, i) => (
-                      <SelectItem key={i} value={h.replace(/"/g, '').trim()}>
-                        {h.replace(/"/g, '').trim()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Coluna de Descrição</label>
-                <Select
-                  value={columnMapping.description || detectedMapping?.description || ''}
-                  onValueChange={v => setColumnMapping(prev => ({ ...prev, description: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rawContent.split('\n')[0]?.split(delimiter).map((h, i) => (
-                      <SelectItem key={i} value={h.replace(/"/g, '').trim()}>
-                        {h.replace(/"/g, '').trim()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Coluna de Valor</label>
-                <Select
-                  value={columnMapping.amount || detectedMapping?.amount || ''}
-                  onValueChange={v => setColumnMapping(prev => ({ ...prev, amount: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rawContent.split('\n')[0]?.split(delimiter).map((h, i) => (
-                      <SelectItem key={i} value={h.replace(/"/g, '').trim()}>
-                        {h.replace(/"/g, '').trim()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
+            <div className="space-y-3 px-4 pb-4 pt-3">
+              {(['date', 'description', 'amount'] as const).map(field => {
+                const labels = { date: 'Data', description: 'Descrição', amount: 'Valor' }
+                return (
+                  <div key={field} className="space-y-1.5">
+                    <label className="text-xs font-medium">{labels[field]}</label>
+                    <Select
+                      value={columnMapping[field] || detectedMapping?.[field] || ''}
+                      onValueChange={v => setColumnMapping(prev => ({ ...prev, [field]: v }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {rawContent.split('\n')[0]?.split(delimiter).map((h, i) => (
+                          <SelectItem key={i} value={h.replace(/"/g, '').trim()}>
+                            {h.replace(/"/g, '').trim()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )
+              })}
+              <div className="space-y-1.5">
                 <label className="text-xs font-medium">Separador</label>
                 <Select value={delimiter} onValueChange={setDelimiter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value=",">Vírgula (,)</SelectItem>
                     <SelectItem value=";">Ponto e vírgula (;)</SelectItem>
@@ -567,31 +500,24 @@ export function Import() {
               </div>
             </div>
           </div>
-
           <Button
-            className="w-full"
-            onClick={processFile}
+            className="w-full" onClick={processFile}
             disabled={loading || !columnMapping.date || !columnMapping.description || !columnMapping.amount}
           >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Pré-visualizar
-              </>
-            )}
+            {loading
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processando...</>
+              : <><Check className="h-4 w-4 mr-2" />Pré-visualizar</>
+            }
           </Button>
         </div>
       )}
 
+      {/* STEP: PREVIEW */}
       {step === 'preview' && (
         <div className="space-y-4">
+          {/* Summary bar */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium">
                 {validRows.length} de {allNonDup.length} selecionados
               </span>
@@ -599,6 +525,12 @@ export function Import() {
                 <Badge variant="outline" className="gap-1 text-muted-foreground">
                   <MinusCircle className="h-3 w-3" />
                   {skippedRows.length} ignorados
+                </Badge>
+              )}
+              {transferDupRows.length > 0 && (
+                <Badge variant="outline" className="gap-1 text-primary/70">
+                  <ArrowLeftRight className="h-3 w-3" />
+                  {transferDupRows.length} transf. já registrada{transferDupRows.length !== 1 ? 's' : ''}
                 </Badge>
               )}
             </div>
@@ -615,17 +547,16 @@ export function Import() {
             </div>
           </div>
 
+          {/* Bulk classify */}
           <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
             <div className="border-b border-border/60 px-4 py-3">
               <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Classificar todos</p>
             </div>
-            <div className="space-y-3 px-4 pb-4">
+            <div className="space-y-3 px-4 pb-4 pt-3">
               {importMode === 'transactions' && (
                 <div className="grid grid-cols-2 gap-2">
                   <Select defaultValue="mine" onValueChange={v => updateAllRows({ transactionType: v as TransactionType })}>
-                    <SelectTrigger className="text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="mine">Meu</SelectItem>
                       <SelectItem value="repasse">Repasse</SelectItem>
@@ -633,9 +564,7 @@ export function Import() {
                     </SelectContent>
                   </Select>
                   <Select onValueChange={v => updateAllRows({ method: v as TransactionMethod })}>
-                    <SelectTrigger className="text-xs">
-                      <SelectValue placeholder="Método" />
-                    </SelectTrigger>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Método" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="credit_card">Cartão</SelectItem>
                       <SelectItem value="pix">PIX</SelectItem>
@@ -645,39 +574,26 @@ export function Import() {
                   </Select>
                 </div>
               )}
-
               <Select onValueChange={v => updateAllRows({ category_id: v === 'none' ? null : v })}>
-                <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Categoria (todas)" />
-                </SelectTrigger>
+                <SelectTrigger className="text-xs"><SelectValue placeholder="Categoria (todas)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem categoria</SelectItem>
-                  {categories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-
               {importMode === 'transactions' && (
                 <Select onValueChange={v => updateAllRows({ bank_account_id: v === 'none' ? null : v })}>
-                  <SelectTrigger className="text-xs">
-                    <SelectValue placeholder="Conta bancária (todas)" />
-                  </SelectTrigger>
+                  <SelectTrigger className="text-xs"><SelectValue placeholder="Conta bancária (todas)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhuma</SelectItem>
-                    {bankAccounts.map(a => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
+                    {bankAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               )}
             </div>
           </div>
 
+          {/* Preview table */}
           <div className="rounded-xl border overflow-hidden">
             <div className="max-h-[60vh] overflow-auto">
               <Table>
@@ -690,156 +606,235 @@ export function Import() {
                         aria-label="Selecionar todos"
                       />
                     </TableHead>
-                    <TableHead className="text-xs w-[80px]">Data</TableHead>
+                    <TableHead className="text-xs w-[75px]">Data</TableHead>
                     <TableHead className="text-xs">Descrição</TableHead>
-                    <TableHead className="text-xs w-[90px] text-right">Valor</TableHead>
-                    <TableHead className="text-xs w-[100px]">Tipo</TableHead>
+                    <TableHead className="text-xs w-[85px] text-right">Valor</TableHead>
+                    <TableHead className="text-xs w-[130px]">Tipo</TableHead>
                     {importMode === 'transactions' && (
-                      <TableHead className="text-xs w-[100px]">Método</TableHead>
+                      <TableHead className="text-xs w-[90px]">Método</TableHead>
                     )}
-                    <TableHead className="text-xs w-[120px]">Categoria</TableHead>
+                    <TableHead className="text-xs w-[110px]">Categoria</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewRows.map(row => (
-                    <TableRow
-                      key={row.id}
-                      className={cn(
-                        'transition-opacity',
-                        row.isDuplicate && 'bg-destructive/5 opacity-40',
-                        skipped.has(row.id) && !row.isDuplicate && 'opacity-40',
-                        row.memoryMatch && !row.isDuplicate && !skipped.has(row.id) && 'bg-primary/5',
-                      )}
-                    >
-                      <TableCell>
-                        {!row.isDuplicate && (
-                          <Checkbox
-                            checked={!skipped.has(row.id)}
-                            onCheckedChange={() => toggleSkip(row.id)}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs">{formatDate(row.date)}</TableCell>
-                      <TableCell className="text-xs">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="truncate max-w-[150px]">{row.description}</span>
-                          {row.memoryMatch && !row.isDuplicate && (
-                            <span className="text-[10px] text-positive">✓ memória</span>
-                          )}
-                          {row.isDuplicate && (
-                            <span className="text-[10px] text-destructive">duplicado</span>
-                          )}
-                          {skipped.has(row.id) && !row.isDuplicate && (
-                            <span className="text-[10px] text-muted-foreground">ignorado</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-right font-mono font-medium tabular-nums">
-                        <div className="flex items-center justify-end gap-1">
-                          {row.type === 'credit'
-                            ? <TrendingUp className="h-3 w-3 text-positive shrink-0" />
-                            : <TrendingDown className="h-3 w-3 text-destructive shrink-0" />
-                          }
-                          <span className={cn(
-                            row.type === 'credit' ? 'text-positive' : 'text-destructive',
-                          )}>
-                            {formatBRL(row.amount)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        <Select
-                          value={row.transactionType}
-                          onValueChange={v => updateRow(row.id, { transactionType: v as TransactionType })}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="mine">Meu</SelectItem>
-                            <SelectItem value="repasse">Repasse</SelectItem>
-                            <SelectItem value="rateado">Rateado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      {importMode === 'transactions' && (
-                        <TableCell className="text-xs">
-                          <Select
-                            value={row.method}
-                            onValueChange={v => updateRow(row.id, { method: v as TransactionMethod })}
-                          >
-                            <SelectTrigger className="h-7 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="credit_card">Cartão</SelectItem>
-                              <SelectItem value="pix">PIX</SelectItem>
-                              <SelectItem value="debit">Débito</SelectItem>
-                              <SelectItem value="cash">Dinheiro</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      )}
-                      <TableCell className="text-xs">
-                        <Select
-                          value={row.category_id || 'none'}
-                          onValueChange={v => updateRow(row.id, { category_id: v === 'none' ? null : v })}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue placeholder="-" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">-</SelectItem>
-                            {categories.map(c => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+                  {previewRows.map(row => {
+                    const isSkipped = skipped.has(row.id)
+                    const isTransfer = row.rowKind === 'transfer'
+                    const needsTransferAccounts = isTransfer && (!row.transfer_from_account_id || !row.transfer_to_account_id)
 
-                    </TableRow>
-                  ))}
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          'transition-opacity',
+                          row.isDuplicate && 'bg-destructive/5 opacity-40',
+                          isSkipped && !row.isDuplicate && 'opacity-35',
+                          row.isTransferDuplicate && !isSkipped && 'bg-primary/5',
+                          row.memoryMatch && !row.isDuplicate && !isSkipped && !row.isTransferDuplicate && 'bg-positive/5',
+                          isTransfer && !row.isDuplicate && !isSkipped && 'bg-accent/10',
+                        )}
+                      >
+                        {/* Checkbox */}
+                        <TableCell>
+                          {!row.isDuplicate && (
+                            <Checkbox
+                              checked={!isSkipped}
+                              onCheckedChange={() => toggleSkip(row.id)}
+                            />
+                          )}
+                        </TableCell>
+
+                        {/* Data */}
+                        <TableCell className="text-xs">{formatDate(row.date)}</TableCell>
+
+                        {/* Descrição + badges */}
+                        <TableCell className="text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="truncate max-w-[140px] block">{row.description}</span>
+                            {row.memoryMatch && !row.isDuplicate && !row.isTransferDuplicate && (
+                              <span className="text-[10px] text-positive">✓ memória</span>
+                            )}
+                            {row.isDuplicate && <span className="text-[10px] text-destructive">duplicado</span>}
+                            {row.isTransferDuplicate && !isSkipped && (
+                              <span className="text-[10px] text-primary/70">transferência registrada</span>
+                            )}
+                            {isSkipped && !row.isDuplicate && (
+                              <span className="text-[10px] text-muted-foreground">ignorado</span>
+                            )}
+                            {isTransfer && !isSkipped && needsTransferAccounts && (
+                              <span className="text-[10px] text-warning">selecione as contas ↓</span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Valor com cor */}
+                        <TableCell className="text-xs text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {row.type === 'credit'
+                              ? <TrendingUp className="h-3 w-3 text-positive shrink-0" />
+                              : <TrendingDown className="h-3 w-3 text-destructive shrink-0" />
+                            }
+                            <span className={cn(
+                              'font-mono font-medium tabular-nums',
+                              row.type === 'credit' ? 'text-positive' : 'text-destructive',
+                            )}>
+                              {formatBRL(row.amount)}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Tipo: lançamento / transferência / ignorar */}
+                        <TableCell className="text-xs">
+                          <div className="flex flex-col gap-1">
+                            <Select
+                              value={row.rowKind}
+                              onValueChange={v => updateRow(row.id, {
+                                rowKind: v as RowKind,
+                                // quando troca pra transfer, desmarca o skip se estava marcado
+                                ...(v === 'transfer' && isSkipped ? {} : {}),
+                              })}
+                              disabled={row.isDuplicate}
+                            >
+                              <SelectTrigger className={cn('h-7 text-xs', isTransfer && 'border-accent/50')}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="transaction">
+                                  <span className="flex items-center gap-1.5">
+                                    <TrendingDown className="h-3 w-3" /> Lançamento
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="transfer">
+                                  <span className="flex items-center gap-1.5">
+                                    <ArrowLeftRight className="h-3 w-3" /> Transferência
+                                  </span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            {/* Contas da transferência */}
+                            {isTransfer && !row.isDuplicate && (
+                              <div className="flex flex-col gap-1 mt-0.5">
+                                <Select
+                                  value={row.transfer_from_account_id || ''}
+                                  onValueChange={v => updateRow(row.id, { transfer_from_account_id: v })}
+                                >
+                                  <SelectTrigger className="h-6 text-[10px]">
+                                    <SelectValue placeholder="De (conta)" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {bankAccounts.map(a => (
+                                      <SelectItem key={a.id} value={a.id}>
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                                          {a.name}
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Select
+                                  value={row.transfer_to_account_id || ''}
+                                  onValueChange={v => updateRow(row.id, { transfer_to_account_id: v })}
+                                >
+                                  <SelectTrigger className="h-6 text-[10px]">
+                                    <SelectValue placeholder="Para (conta)" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {bankAccounts.map(a => (
+                                      <SelectItem key={a.id} value={a.id}>
+                                        <span className="flex items-center gap-1.5">
+                                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                                          {a.name}
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Método (só lançamentos) */}
+                        {importMode === 'transactions' && (
+                          <TableCell className="text-xs">
+                            {row.rowKind === 'transaction' && !row.isDuplicate && (
+                              <Select
+                                value={row.method}
+                                onValueChange={v => updateRow(row.id, { method: v as TransactionMethod })}
+                              >
+                                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="credit_card">Cartão</SelectItem>
+                                  <SelectItem value="pix">PIX</SelectItem>
+                                  <SelectItem value="debit">Débito</SelectItem>
+                                  <SelectItem value="cash">Dinheiro</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                        )}
+
+                        {/* Categoria (só lançamentos) */}
+                        <TableCell className="text-xs">
+                          {row.rowKind === 'transaction' && !row.isDuplicate && (
+                            <Select
+                              value={row.category_id || 'none'}
+                              onValueChange={v => updateRow(row.id, { category_id: v === 'none' ? null : v })}
+                            >
+                              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">-</SelectItem>
+                                {categories.map(c => (
+                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
           </div>
 
           <Button
-            className="w-full"
-            onClick={handleImport}
-            disabled={loading || validRows.length === 0}
+            className="w-full" onClick={handleImport}
+            disabled={loading || validRows.length === 0 ||
+              validRows.some(r => r.rowKind === 'transfer' && (!r.transfer_from_account_id || !r.transfer_to_account_id))
+            }
           >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Importando...
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Importar {validRows.length} lançamento{validRows.length !== 1 ? 's' : ''} · {formatBRL(selectedTotal)} {validRows.length} lançamentos
-              </>
-            )}
+            {loading
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando...</>
+              : <><Check className="h-4 w-4 mr-2" />
+                  Importar {validRows.length} {validRows.length !== 1 ? 'lançamentos' : 'lançamento'} · {formatBRL(selectedTotal)}
+                </>
+            }
           </Button>
+          {validRows.some(r => r.rowKind === 'transfer' && (!r.transfer_from_account_id || !r.transfer_to_account_id)) && (
+            <p className="text-xs text-center text-warning">
+              Selecione as contas de origem e destino para todas as transferências antes de importar.
+            </p>
+          )}
         </div>
       )}
 
+      {/* STEP: DONE */}
       {step === 'done' && (
         <div className="flex flex-col items-center gap-6 py-12">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
-            <Check className="h-8 w-8 text-emerald-600" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-positive/10">
+            <Check className="h-8 w-8 text-positive" />
           </div>
           <div className="text-center">
             <h2 className="text-xl font-bold">Importação concluída!</h2>
             <p className="text-muted-foreground mt-1">
-              {importCount} lançamentos importados com sucesso
+              {importCount} {importCount !== 1 ? 'lançamentos importados' : 'lançamento importado'} com sucesso
             </p>
           </div>
-          <Button onClick={reset} variant="outline">
-            Importar outro arquivo
-          </Button>
+          <Button onClick={reset} variant="outline">Importar outro arquivo</Button>
         </div>
       )}
     </div>
