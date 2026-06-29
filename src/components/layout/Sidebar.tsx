@@ -13,7 +13,9 @@ interface SidebarProps {
 
 export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   const { stats } = useFinance()
-  const pendingRateios = stats?.aReceberPending ?? 0
+  const pendingRateios = stats?.aReceberByPerson
+    ? stats.aReceberByPerson.reduce((s, p) => s + p.items.filter(i => i.transactionPerson.reimbursement_status === 'pending').length, 0)
+    : 0
 
   const navItem = (
     id: View,
