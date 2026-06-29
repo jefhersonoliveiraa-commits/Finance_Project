@@ -114,8 +114,8 @@ export function BudgetPage() {
           <p className="text-sm text-muted-foreground">Limites por categoria</p>
         </div>
         <div className="flex items-center gap-2">
-          <MonthSelector />
-          <Button size="sm" onClick={() => setPlannerOpen(true)} className="gap-1.5">
+          <div className="hidden md:block"><MonthSelector />
+          </div><Button size="sm" onClick={() => setPlannerOpen(true)} className="gap-1.5">
             <Target className="h-3.5 w-3.5" /> Planejar
           </Button>
         </div>
