@@ -23,42 +23,42 @@ export function AppLayout({ children, currentView, onNavigate }: AppLayoutProps)
   return (
     <div className="flex h-screen w-full bg-background antialiased overflow-hidden text-foreground">
 
-      {/* Desktop sidebar — sempre visível */}
+      {/* ── DESKTOP: sidebar fixa à esquerda ── */}
       <div className="hidden md:flex">
         <Sidebar currentView={currentView} onNavigate={onNavigate} />
       </div>
 
-      {/* Mobile drawer overlay */}
+      {/* ── MOBILE: overlay escuro atrás do drawer ── */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-[55] bg-background/70 backdrop-blur-sm md:hidden"
           onClick={() => setDrawerOpen(false)}
         />
       )}
 
-      {/* Mobile drawer — desliza da esquerda */}
+      {/* ── MOBILE: drawer que desliza da esquerda ── */}
       <div className={cn(
-        'fixed inset-y-0 left-0 z-50 md:hidden transition-transform duration-300 ease-out',
+        'fixed inset-y-0 left-0 z-[60] md:hidden transition-transform duration-300 ease-out',
         drawerOpen ? 'translate-x-0' : '-translate-x-full',
       )}>
         <Sidebar currentView={currentView} onNavigate={navigate} />
       </div>
 
-      {/* Conteúdo principal */}
+      {/* ── MOBILE: botão hamburger/X — sempre acima de tudo ── */}
+      <button
+        className="fixed top-3 left-3 z-[70] md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card/90 text-foreground shadow-lg backdrop-blur-sm transition active:scale-95"
+        onClick={() => setDrawerOpen(v => !v)}
+        aria-label={drawerOpen ? 'Fechar menu' : 'Abrir menu'}
+      >
+        {drawerOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      {/* ── Conteúdo principal ── */}
       <main className="flex-1 flex flex-col h-full overflow-y-auto pb-8 relative">
 
-        {/* Header mobile com hamburger */}
-        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border/60 bg-background/80 backdrop-blur-xl px-4 py-3">
-          <button
-            onClick={() => setDrawerOpen(v => !v)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition"
-          >
-            {drawerOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-
-          {/* Logo / nome do app */}
-          <span className="font-bold text-base tracking-tight">Finanças</span>
-
+        {/* Header mobile (sem o botão — ele é fixo acima) */}
+        <div className="md:hidden sticky top-0 z-30 flex items-center justify-end gap-3 border-b border-border/60 bg-background/80 backdrop-blur-xl px-4 py-3 pl-16">
+          <span className="font-bold text-base tracking-tight flex-1 text-center">Finanças</span>
           <MonthSelector />
         </div>
 
