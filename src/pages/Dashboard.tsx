@@ -101,8 +101,8 @@ export function Dashboard() {
           <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Visão geral das suas finanças</p>
         </div>
-        <MonthSelector />
-      </div>
+        <div className="hidden md:block"><MonthSelector />
+      </div></div>
 
       {/* Toggle: Apenas meu / Visão geral */}
       <div className="flex items-center justify-between">
