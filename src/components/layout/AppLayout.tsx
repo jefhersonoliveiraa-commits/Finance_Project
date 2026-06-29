@@ -31,7 +31,7 @@ export function AppLayout({ children, currentView, onNavigate }: AppLayoutProps)
       {/* ── MOBILE: overlay escuro atrás do drawer ── */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-[55] bg-background/70 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm md:hidden"
           onClick={() => setDrawerOpen(false)}
         />
       )}
@@ -46,7 +46,7 @@ export function AppLayout({ children, currentView, onNavigate }: AppLayoutProps)
 
       {/* ── MOBILE: botão hamburger/X — sempre acima de tudo ── */}
       <button
-        className="fixed top-3 left-3 z-[70] md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card/90 text-foreground shadow-lg backdrop-blur-sm transition active:scale-95"
+        className="fixed top-3 left-3 z-[70] md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-[var(--sidebar)] text-foreground shadow-lg transition active:scale-95"
         onClick={() => setDrawerOpen(v => !v)}
         aria-label={drawerOpen ? 'Fechar menu' : 'Abrir menu'}
       >
