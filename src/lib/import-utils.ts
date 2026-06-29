@@ -20,18 +20,27 @@ export interface ImportMemory {
   created_at: string
 }
 
+export type RowKind = 'transaction' | 'transfer' | 'skip'
+
 export interface ImportPreviewRow {
   id: string
   date: string
   description: string
   amount: number
   type: 'debit' | 'credit'
+  // transaction fields
   method: TransactionMethod
   transactionType: TransactionType
   category_id: string | null
   bank_account_id: string | null
   credit_card_id: string | null
+  // transfer fields
+  rowKind: RowKind
+  transfer_from_account_id: string | null
+  transfer_to_account_id: string | null
+  // meta
   isDuplicate: boolean
+  isTransferDuplicate: boolean  // matched an existing transfer
   duplicateId?: string
   memoryMatch: ImportMemory | null
 }
@@ -103,11 +112,10 @@ function parseOFXDate(dateStr: string): string {
 }
 
 function parseBRLAmount(raw: string): number {
-  // Normaliza sinais: U+2212 (sinal matematico), +, − → - ou vazio
   let s = raw
-    .replace(/\u2212/g, '-')   // sinal de menos matematico (PicPay)
-    .replace(/[R$\s\u00a0]/g, '') // R$, espacos, nbsp
-    .replace(/^\+/, '')          // + inicial em creditos
+    .replace(/\u2212/g, '-')
+    .replace(/[R$\s\u00a0]/g, '')
+    .replace(/^\+/, '')
     .trim()
 
   const negative = s.startsWith('-')
@@ -154,7 +162,6 @@ export function parseCSV(content: string, mapping: ColumnMapping, delimiter: str
     const description = values[descIdx].trim()
     const amount = Math.abs(parseBRLAmount(values[amountIdx]))
 
-    // Detecta tipo pelo sinal real do valor (apos normalizacao de U+2212 etc)
     const rawAmt = values[amountIdx]
     const isNegativeRaw = rawAmt.includes('\u2212') || rawAmt.trimStart().startsWith('-')
     let type: 'debit' | 'credit' = isNegativeRaw ? 'debit' : 'credit'
@@ -234,14 +241,13 @@ export function detectCSVColumns(headers: string[]): Partial<ColumnMapping> {
   const headerLower = headers.map(h => h.toLowerCase().trim())
   const mapping: Partial<ColumnMapping> = {}
 
-  // Padroes ordenados por especificidade (Nubank, C6, Bradesco, genericos)
   const datePatterns = [
     'data', 'date', 'data lançamento', 'data lancamento',
     'dt lançamento', 'dt lancamento', 'dt transacao', 'dt_transacao',
     'data pagamento', 'data compra',
   ]
   const descPatterns = [
-    'origem / destino', 'origem/destino',  // PicPay
+    'origem / destino', 'origem/destino',
     'descricao', 'description', 'memo', 'historico',
     'lançamento', 'lancamento', 'estabelecimento',
     'descricao transacao', 'titulo',
@@ -254,26 +260,17 @@ export function detectCSVColumns(headers: string[]): Partial<ColumnMapping> {
 
   for (const pattern of datePatterns) {
     const idx = headerLower.findIndex(h => h.includes(pattern))
-    if (idx !== -1) {
-      mapping.date = headers[idx]
-      break
-    }
+    if (idx !== -1) { mapping.date = headers[idx]; break }
   }
 
   for (const pattern of descPatterns) {
     const idx = headerLower.findIndex(h => h.includes(pattern))
-    if (idx !== -1) {
-      mapping.description = headers[idx]
-      break
-    }
+    if (idx !== -1) { mapping.description = headers[idx]; break }
   }
 
   for (const pattern of amountPatterns) {
     const idx = headerLower.findIndex(h => h.includes(pattern))
-    if (idx !== -1) {
-      mapping.amount = headers[idx]
-      break
-    }
+    if (idx !== -1) { mapping.amount = headers[idx]; break }
   }
 
   return mapping
