@@ -254,9 +254,12 @@ export function detectCSVColumns(headers: string[]): Partial<ColumnMapping> {
     'descricao transacao', 'titulo',
   ]
   const amountPatterns = [
-    'valor', 'amount', 'value', 'montante',
-    'valor (r$)', 'valor(r$)', 'vlr', 'valor transacao',
-    'valor lançamento', 'valor lancamento',
+    // Mais específicos primeiro (evita pegar 'Valor (em US$)' antes de 'Valor (em R$)')
+    'valor (em r$)', 'valor(em r$)', 'valor (r$)', 'valor(r$)', 'valor em r$',
+    'valor lançamento', 'valor lancamento', 'valor transacao',
+    'amount', 'montante', 'vlr',
+    // Genérico por último
+    'valor', 'value',
   ]
 
   for (const pattern of datePatterns) {
