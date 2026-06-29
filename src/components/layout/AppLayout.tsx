@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { GlobalFAB } from './GlobalFAB'
 import { MonthSelector } from './MonthSelector'
-import { cn } from '@/lib/utils'
 import type { View } from '@/lib/types'
 
 interface AppLayoutProps {
@@ -21,51 +20,51 @@ export function AppLayout({ children, currentView, onNavigate }: AppLayoutProps)
   }
 
   return (
-    <div className="flex h-screen w-full bg-background antialiased overflow-hidden text-foreground">
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground antialiased">
 
-      {/* ── DESKTOP: sidebar fixa à esquerda ── */}
-      <div className="hidden md:flex">
+      {/* ═══ DESKTOP SIDEBAR (>= md) ═══ */}
+      <aside className="hidden md:block h-full shrink-0">
         <Sidebar currentView={currentView} onNavigate={onNavigate} />
-      </div>
+      </aside>
 
-      {/* ── MOBILE: overlay escuro atrás do drawer ── */}
+      {/* ═══ MOBILE DRAWER (< md) — só montado quando aberto ═══ */}
       {drawerOpen && (
-        <div
-          className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm md:hidden"
-          onClick={() => setDrawerOpen(false)}
-        />
+        <div className="md:hidden">
+          {/* overlay */}
+          <div
+            className="fixed inset-0 z-[55] bg-black/60"
+            onClick={() => setDrawerOpen(false)}
+          />
+          {/* drawer painel */}
+          <div className="fixed inset-y-0 left-0 z-[60] animate-in slide-in-from-left duration-300">
+            <Sidebar currentView={currentView} onNavigate={navigate} />
+          </div>
+        </div>
       )}
 
-      {/* ── MOBILE: drawer que desliza da esquerda ── */}
-      <div className={cn(
-        'fixed inset-y-0 left-0 z-[60] md:hidden transition-transform duration-300 ease-out',
-        drawerOpen ? 'translate-x-0' : '-translate-x-full',
-      )}>
-        <Sidebar currentView={currentView} onNavigate={navigate} />
-      </div>
+      {/* ═══ COLUNA DE CONTEÚDO ═══ */}
+      <div className="flex flex-1 flex-col h-full overflow-hidden">
 
-      {/* ── MOBILE: botão hamburger/X — sempre acima de tudo ── */}
-      <button
-        className="fixed top-3 left-3 z-[70] md:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-[var(--sidebar)] text-foreground shadow-lg transition active:scale-95"
-        onClick={() => setDrawerOpen(v => !v)}
-        aria-label={drawerOpen ? 'Fechar menu' : 'Abrir menu'}
-      >
-        {drawerOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
-
-      {/* ── Conteúdo principal ── */}
-      <main className="flex-1 flex flex-col h-full overflow-y-auto pb-8 relative">
-
-        {/* Header mobile (sem o botão — ele é fixo acima) */}
-        <div className="md:hidden sticky top-0 z-30 flex items-center justify-end gap-3 border-b border-border/60 bg-background/80 backdrop-blur-xl px-4 py-3 pl-16">
-          <span className="font-bold text-base tracking-tight flex-1 text-center">Finanças</span>
+        {/* Header mobile (< md) */}
+        <header className="md:hidden flex items-center gap-3 border-b border-border/60 bg-background px-4 py-3 shrink-0">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-foreground active:scale-95 transition"
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <span className="font-bold text-base tracking-tight flex-1">Finanças</span>
           <MonthSelector />
-        </div>
+        </header>
 
-        <div className="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-5">
-          {children}
-        </div>
-      </main>
+        {/* Área rolável */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-5 pb-24">
+            {children}
+          </div>
+        </main>
+      </div>
 
       <GlobalFAB />
     </div>
