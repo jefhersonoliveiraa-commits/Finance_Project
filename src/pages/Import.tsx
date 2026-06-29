@@ -13,6 +13,11 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useFinance } from '@/context/FinanceContext'
 import { formatBRL, formatDate } from '@/lib/format'
 import {
@@ -28,7 +33,7 @@ type ImportStep = 'upload' | 'mapping' | 'preview' | 'done'
 export function Import() {
   const {
     transactions, transfers, categories, subcategories, bankAccounts, cardAccounts,
-    selectedMonth, addTransaction, addTransfer,
+    selectedMonth, addTransaction, addTransfer, addCategory, addSubcategory,
   } = useFinance()
 
   const [step, setStep] = useState<ImportStep>('upload')
@@ -44,6 +49,15 @@ export function Import() {
   const [importMemory, setImportMemory] = useState<ImportMemory[]>([])
   const [importCount, setImportCount] = useState(0)
   const [skipped, setSkipped] = useState<Set<string>>(new Set())
+  // Criação rápida de categoria/subcategoria a partir da importação
+  const [createDialog, setCreateDialog] = useState<{
+    kind: 'category' | 'subcategory'
+    rowId: string
+    categoryId?: string  // para subcategoria
+  } | null>(null)
+  const [createName, setCreateName] = useState('')
+  const [createColor, setCreateColor] = useState('#A78BFA')
+  const [creating, setCreating] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -352,6 +366,28 @@ export function Import() {
     if (skipped.size < nonDupIds.length) setSkipped(new Set(nonDupIds))
     else setSkipped(new Set())
   }, [skipped, previewRows])
+
+  async function handleCreateCategoryOrSub() {
+    if (!createDialog || !createName.trim()) return
+    setCreating(true)
+    try {
+      if (createDialog.kind === 'category') {
+        const cat = await addCategory(createName.trim(), createColor)
+        // já atribui a categoria recém-criada à linha
+        updateRow(createDialog.rowId, { category_id: cat.id, subcategory_id: null })
+      } else if (createDialog.kind === 'subcategory' && createDialog.categoryId) {
+        const sub = await addSubcategory(createDialog.categoryId, createName.trim(), null)
+        updateRow(createDialog.rowId, { subcategory_id: sub.id })
+      }
+      setCreateDialog(null)
+      setCreateName('')
+      setCreateColor('#A78BFA')
+    } catch (err) {
+      console.error('Erro ao criar:', err)
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const validRows    = previewRows.filter(r => !r.isDuplicate && !skipped.has(r.id))
   const skippedRows  = previewRows.filter(r => !r.isDuplicate && skipped.has(r.id))
@@ -783,10 +819,17 @@ export function Import() {
                           {row.rowKind === 'transaction' && !row.isDuplicate && (
                             <Select
                               value={row.category_id || 'none'}
-                              onValueChange={v => updateRow(row.id, {
-                                category_id: v === 'none' ? null : v,
-                                subcategory_id: null, // reset subcategoria ao trocar categoria
-                              })}
+                              onValueChange={v => {
+                                if (v === '__create__') {
+                                  setCreateDialog({ kind: 'category', rowId: row.id })
+                                  setCreateName('')
+                                  return
+                                }
+                                updateRow(row.id, {
+                                  category_id: v === 'none' ? null : v,
+                                  subcategory_id: null, // reset subcategoria ao trocar categoria
+                                })
+                              }}
                             >
                               <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                               <SelectContent>
@@ -794,6 +837,9 @@ export function Import() {
                                 {categories.map(c => (
                                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                 ))}
+                                <SelectItem value="__create__" className="text-primary font-medium">
+                                  + Criar categoria
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           )}
@@ -803,11 +849,17 @@ export function Import() {
                         <TableCell className="text-xs">
                           {row.rowKind === 'transaction' && !row.isDuplicate && row.category_id && (() => {
                             const catSubs = subcategories.filter(s => s.category_id === row.category_id)
-                            if (catSubs.length === 0) return null
                             return (
                               <Select
                                 value={row.subcategory_id || 'none'}
-                                onValueChange={v => updateRow(row.id, { subcategory_id: v === 'none' ? null : v })}
+                                onValueChange={v => {
+                                  if (v === '__create__') {
+                                    setCreateDialog({ kind: 'subcategory', rowId: row.id, categoryId: row.category_id! })
+                                    setCreateName('')
+                                    return
+                                  }
+                                  updateRow(row.id, { subcategory_id: v === 'none' ? null : v })
+                                }}
                               >
                                 <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                                 <SelectContent>
@@ -815,6 +867,9 @@ export function Import() {
                                   {catSubs.map(s => (
                                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                                   ))}
+                                  <SelectItem value="__create__" className="text-primary font-medium">
+                                    + Criar subcategoria
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             )
@@ -864,6 +919,60 @@ export function Import() {
           <Button onClick={reset} variant="outline">Importar outro arquivo</Button>
         </div>
       )}
+
+      {/* Diálogo: criar categoria / subcategoria sem sair da importação */}
+      <Dialog open={!!createDialog} onOpenChange={o => { if (!o) { setCreateDialog(null); setCreateName('') } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {createDialog?.kind === 'category' ? 'Nova categoria' : 'Nova subcategoria'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div>
+              <Label>Nome</Label>
+              <Input
+                className="mt-1.5"
+                placeholder={createDialog?.kind === 'category' ? 'Ex: Alimentação' : 'Ex: Restaurante'}
+                value={createName}
+                onChange={e => setCreateName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreateCategoryOrSub()}
+                autoFocus
+              />
+            </div>
+
+            {/* Cor só para categoria */}
+            {createDialog?.kind === 'category' && (
+              <div>
+                <Label className="mb-2 block">Cor</Label>
+                <div className="flex flex-wrap gap-2">
+                  {['#A78BFA', '#F87171', '#34D399', '#60A5FA', '#FBBF24', '#F472B6', '#22D3EE', '#A3E635', '#FB923C', '#94A3B8'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCreateColor(c)}
+                      className={cn(
+                        'h-7 w-7 rounded-full transition-transform',
+                        createColor === c && 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110',
+                      )}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCreateDialog(null); setCreateName('') }} disabled={creating}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateCategoryOrSub} disabled={creating || !createName.trim()}>
+              {creating ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+              Criar e usar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
