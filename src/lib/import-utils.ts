@@ -32,6 +32,7 @@ export interface ImportPreviewRow {
   method: TransactionMethod
   transactionType: TransactionType
   category_id: string | null
+  subcategory_id: string | null
   bank_account_id: string | null
   credit_card_id: string | null
   // transfer fields
