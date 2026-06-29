@@ -178,8 +178,8 @@ export function Transactions() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight">Lançamentos</h1>
-          <MonthSelector className="mt-0.5" />
-        </div>
+          <div className="hidden md:block"><MonthSelector className="mt-0.5" />
+        </div></div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" onClick={() => navigate('import')}>
             <Upload className="h-4 w-4" />
