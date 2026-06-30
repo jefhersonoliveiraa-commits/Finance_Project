@@ -44,7 +44,10 @@ export function Dashboard() {
   } = stats
 
   const recentTx = transactions.slice(0, 5)
-  const totalBalance = bankAccounts.reduce((s, a) => s + a.current_balance, 0)
+  const checkingAccounts = bankAccounts.filter(a => a.account_type !== 'investment')
+  const investmentAccounts = bankAccounts.filter(a => a.account_type === 'investment')
+  const totalBalance = checkingAccounts.reduce((s, a) => s + a.current_balance, 0)
+  const totalInvested = investmentAccounts.reduce((s, a) => s + a.current_balance, 0)
   const futureCommitted = futureBills.reduce((s, b) => s + b.myAmount, 0)
   const pendingPeople = aReceberByPerson.filter(p => p.totalPending > 0)
   const isMine = viewMode === 'mine'
@@ -283,8 +286,8 @@ export function Dashboard() {
         </button>
       )}
 
-      {/* Account balances */}
-      {!loading && bankAccounts.length > 0 && (
+      {/* Account balances (contas correntes) */}
+      {!loading && checkingAccounts.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -294,7 +297,25 @@ export function Dashboard() {
             <span className="font-mono text-sm font-bold tabular-nums">{formatBRL(totalBalance)}</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {bankAccounts.map(acc => (
+            {checkingAccounts.map(acc => (
+              <AccountBalanceChip key={acc.id} account={acc} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Investimentos (separados das contas) */}
+      {!loading && investmentAccounts.length > 0 && (
+        <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-accent-foreground">
+              <TrendingUp className="h-4 w-4" />
+              Investimentos
+            </span>
+            <span className="font-mono text-sm font-bold tabular-nums text-accent-foreground">{formatBRL(totalInvested)}</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {investmentAccounts.map(acc => (
               <AccountBalanceChip key={acc.id} account={acc} />
             ))}
           </div>
