@@ -28,6 +28,7 @@ export interface BankAccount {
   color: string
   initial_balance: number
   current_balance: number
+  account_type: 'checking' | 'investment'
   created_at: string
 }
 
