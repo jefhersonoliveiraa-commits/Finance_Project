@@ -28,6 +28,7 @@ export function BankAccountForm({ open, onOpenChange }: BankAccountFormProps) {
   const [name, setName] = useState('')
   const [color, setColor] = useState(ACCOUNT_COLORS[0])
   const [initialBalance, setInitialBalance] = useState('0')
+  const [accountType, setAccountType] = useState<'checking' | 'investment'>('checking')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -36,7 +37,7 @@ export function BankAccountForm({ open, onOpenChange }: BankAccountFormProps) {
     setError('')
     setSaving(true)
     try {
-      await addBankAccount(name.trim(), color, parseFloat(initialBalance) || 0)
+      await addBankAccount(name.trim(), color, parseFloat(initialBalance) || 0, accountType)
       resetForm()
       onOpenChange(false)
     } catch (e) {
@@ -51,6 +52,7 @@ export function BankAccountForm({ open, onOpenChange }: BankAccountFormProps) {
     setName('')
     setColor(ACCOUNT_COLORS[0])
     setInitialBalance('0')
+    setAccountType('checking')
     setError('')
   }
 
@@ -70,6 +72,39 @@ export function BankAccountForm({ open, onOpenChange }: BankAccountFormProps) {
               value={name}
               onChange={e => setName(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Tipo de conta</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAccountType('checking')}
+                className={cn(
+                  'rounded-xl border px-3 py-2.5 text-sm font-medium transition-all',
+                  accountType === 'checking'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-secondary/40 text-muted-foreground',
+                )}
+              >
+                Conta corrente
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountType('investment')}
+                className={cn(
+                  'rounded-xl border px-3 py-2.5 text-sm font-medium transition-all',
+                  accountType === 'investment'
+                    ? 'border-accent bg-accent/10 text-accent-foreground'
+                    : 'border-border bg-secondary/40 text-muted-foreground',
+                )}
+              >
+                Investimento
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Investimentos aparecem separados do saldo das contas no dashboard.
+            </p>
           </div>
 
           <div className="space-y-1.5">
