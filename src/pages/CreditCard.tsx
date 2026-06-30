@@ -185,6 +185,11 @@ function CardBillDetail({
     ? billPayments.find(p => p.credit_card_id === card.id && p.billing_year === year && p.billing_month === month)
     : undefined
   const isPaid = !!payment
+  // Valor já pago/antecipado nesta fatura
+  const paidAmount = payment?.amount ?? 0
+  // Saldo a pagar = compras - pagamentos (fatura líquida, como aparece no app do banco)
+  const remainingToPay = Math.max(0, totalMine - paidAmount)
+  const hasPartialPayment = paidAmount > 0 && paidAmount < totalMine
 
   async function handlePay() {
     if (!card) return
@@ -227,22 +232,47 @@ function CardBillDetail({
           {isPaid && <CheckCircle2 className="h-4 w-4 shrink-0 text-positive" />}
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <span className={cn('font-mono font-bold tabular-nums', isPaid && 'text-positive')}>
-            {formatBRL(totalMine)}
-          </span>
+          <div className="text-right">
+            <span className={cn('font-mono font-bold tabular-nums block', isPaid && !hasPartialPayment && 'text-positive')}>
+              {formatBRL(hasPartialPayment ? remainingToPay : totalMine)}
+            </span>
+            {hasPartialPayment && (
+              <span className="text-[10px] text-muted-foreground">
+                de {formatBRL(totalMine)}
+              </span>
+            )}
+          </div>
           <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
         </div>
       </button>
 
       {expanded && (
         <div className="flex flex-col gap-4 border-t border-border px-4 pb-4 pt-3">
+          {/* Detalhamento da fatura quando há pagamento/antecipação */}
+          {paidAmount > 0 && (
+            <div className="rounded-xl border border-border bg-secondary/30 p-3 space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Compras (fatura bruta)</span>
+                <span className="font-mono tabular-nums">{formatBRL(totalMine)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Pagamentos / antecipações</span>
+                <span className="font-mono tabular-nums text-positive">− {formatBRL(paidAmount)}</span>
+              </div>
+              <div className="flex justify-between border-t border-border pt-1.5 text-sm font-semibold">
+                <span>Saldo a pagar</span>
+                <span className="font-mono tabular-nums">{formatBRL(remainingToPay)}</span>
+              </div>
+            </div>
+          )}
+
           {/* Pay button */}
           {card && totalMine > 0 && (
             <div className="flex justify-end">
               {isPaid ? (
                 <Button size="sm" variant="outline" className="h-8 gap-1.5 border-positive/40 text-positive text-xs hover:bg-positive/10"
                   onClick={handleUnpay} disabled={paying}>
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Pago
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {hasPartialPayment ? 'Pagamento parcial' : 'Pago'}
                 </Button>
               ) : (
                 <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handlePay} disabled={paying}>
