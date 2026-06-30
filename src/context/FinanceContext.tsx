@@ -73,7 +73,7 @@ interface FinanceContextType {
   deleteCategory: (id: string) => Promise<void>
   updateCategory: (id: string, name: string, color: string) => Promise<void>
 
-  addBankAccount: (name: string, color: string, initialBalance: number) => Promise<BankAccount>
+  addBankAccount: (name: string, color: string, initialBalance: number, accountType?: 'checking' | 'investment') => Promise<BankAccount>
   updateBankAccount: (id: string, name: string, color: string) => Promise<void>
   deleteBankAccount: (id: string) => Promise<void>
   setAccountBalance: (id: string, balance: number) => Promise<void>
@@ -706,10 +706,11 @@ export function FinanceProvider({ children, onNavigate }: FinanceProviderProps) 
     name: string,
     color: string,
     initialBalance: number,
+    accountType: 'checking' | 'investment' = 'checking',
   ): Promise<BankAccount> => {
     const { data, error } = await supabase
       .from('bank_accounts')
-      .insert({ name, color, initial_balance: initialBalance, current_balance: initialBalance })
+      .insert({ name, color, initial_balance: initialBalance, current_balance: initialBalance, account_type: accountType })
       .select()
       .maybeSingle()
     if (error) throw error
